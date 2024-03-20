@@ -45,6 +45,9 @@ class ListaDisciplinas:
         
 
     def nome_disciplinas(self) -> list[str]:
+        if self._tabela_turmas is None: 
+            return []
+        
         return [disc.text.strip() for disc in self._tabela_turmas.find_all(attrs={'class':'disciplina-nome'})]
 
 
