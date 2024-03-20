@@ -17,7 +17,7 @@ separador = r'&q%5B'
     
 
 def main():
-    lista_disc = lista_disciplinas.ListaDisciplinas(ano_semestre=(2024, 1), nome_ou_codigo="redes")
+    lista_disc = lista_disciplinas.ListaDisciplinas(ano_semestre=(2024, 1), nome_ou_codigo="rjedes")
     print(f"Disciplinas: {lista_disc.nome_disciplinas()}")
     lista_disc.salvar_HTML("test_busca.html")
 
