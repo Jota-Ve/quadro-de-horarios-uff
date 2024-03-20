@@ -1,5 +1,5 @@
-import bs4
 import logging
+
 import lista_disciplinas
 
 logging.basicConfig(level=logging.DEBUG)
@@ -17,8 +17,9 @@ separador = r'&q%5B'
     
 
 def main():
-    lista_disc = lista_disciplinas.ListaDisciplinas(ano_semestre=20241, nome_ou_codigo="redes")
+    lista_disc = lista_disciplinas.ListaDisciplinas(ano_semestre=(2024, 1), nome_ou_codigo="redes")
     print(f"Disciplinas: {lista_disc.nome_disciplinas()}")
+    lista_disc.salvar_HTML("test_busca.html")
 
 
 if __name__ == '__main__':
