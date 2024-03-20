@@ -1,5 +1,7 @@
+import datetime
 from pathlib import Path
 from time import sleep
+from typing import Literal
 import bs4
 import requests
 import logging
@@ -20,8 +22,8 @@ separador = r'&q%5B'
     
 
 
-def pesquisa_link(disciplina_nome_ou_codigo: str|None = None, 
-                  ano_semestre: str|None = None, 
+def pesquisa_link(ano_semestre: tuple[int, Literal[1, 2]],
+                  disciplina_nome_ou_codigo: str|None = None, 
                   departamento: str|None = None, 
                   turno: str|None = None,
                   professor: str|None = None, 
@@ -31,7 +33,7 @@ def pesquisa_link(disciplina_nome_ou_codigo: str|None = None,
                   turma_modalidade: str|None = None) -> requests.Response:
     
     parametros = {
-        'utf8': '%E2%9C%93',
+        'utf8': '✓',
         'q[disciplina_nome_or_disciplina_codigo_cont]': disciplina_nome_ou_codigo, 
         'q[anosemestre_eq]': ano_semestre, 
         'q[disciplina_cod_departamento_eq]': departamento, 
@@ -54,10 +56,15 @@ def salva_HTML(resposta: requests.Response, path: str|Path):
     logging.debug(f"Salvando HTML: {Path(path).name}")
     soup = bs4.BeautifulSoup(resposta.text, features='lxml')
     Path(path).write_text(soup.prettify(), encoding='utf-8')
-    
+
+def nome_disciplinas(soup: bs4.BeautifulSoup):
+    tabela_turmas = soup.find(id="tabela-turmas")
+    return [disc.text.strip() for disc in tabela_turmas.find_all(attrs={'class':'disciplina-nome'})]
+
 
 def main():
-    resposta = pesquisa_link()
+    resposta = pesquisa_link(ano_semestre=20241)
+    soup = bs4.BeautifulSoup(resposta.text, features='lxml')
     salva_HTML(resposta, 'test_busca.html')
 
 
