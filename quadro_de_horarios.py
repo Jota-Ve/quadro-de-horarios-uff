@@ -1,5 +1,6 @@
 
 import logging
+import re
 from typing import Literal
 
 import bs4
