@@ -1,6 +1,6 @@
 import logging
 
-import lista_disciplinas
+import quadro_de_horarios
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -17,9 +17,13 @@ separador = r'&q%5B'
     
 
 def main():
-    lista_disc = lista_disciplinas.ListaDisciplinas(ano_semestre=(2024, 1), nome_ou_codigo="rjedes")
+    quadro = quadro_de_horarios.QuadroDeHorarios()
+    quadro.seleciona_ano_semestre(2024, 1)
+    quadro.seleciona_vagas_para_curso("Sistemas de informação")
+    lista_disc = quadro.pesquisa()
     print(f"Disciplinas: {lista_disc.nome_disciplinas()}")
-    lista_disc.salvar_HTML("test_busca.html")
+    print("")
+    # lista_disc.salvar_HTML("test_busca.html")
 
 
 if __name__ == '__main__':
