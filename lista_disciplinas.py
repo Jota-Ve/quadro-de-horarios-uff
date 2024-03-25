@@ -32,7 +32,12 @@ class Disciplina:
         FILTRO_DIAS_COM_HORARIO = {'text': RGXP_HORARIO, 'attrs': {'class': list(DiaDaSemana)}}
         semana = self._soup.find_all(**FILTRO_DIAS_COM_HORARIO)
         self.horario = {DiaDaSemana(tag_dia['class'][0]): tag_dia.get_text().split(',') for tag_dia in semana}
-          
+    
+    
+    def __str__(self) -> str:
+        return (f'{self.codigo} - {self.nome} ({self.turma}): ' 
+                + ', '.join([f'{dia.name[:3]}={hora}' for dia, hora in self.horario.items()]))
+        
         
 class ListaDisciplinas:
     
@@ -47,36 +52,27 @@ class ListaDisciplinas:
         return [disc.text.strip() for disc in self._soup.find_all(attrs={'class':'disciplina-nome'})]
 
     
-    def horarios(self, dia_horario: dict[DiaDaSemana, list[str]]):
-        # def em_intervalo(horario: tuple[str, str], intervalos: Iterable[str]):
-        #     for dia_tag in dias:
-        #         dia = DiaDaSemana(dia_tag['class'][0])
-        #         for inicio, fim in map(lambda x: x.split('-'), dia_horario[dia]):
-                    
-        #     return any(inicio <= horario[0] <= horario[1] <= fim 
-        #                for inicio, fim in map(lambda x: x.split('-'), intervalos))
-            
+    def selecionar_horarios(self, dia_horario: dict[DiaDaSemana, list[str]]):
         RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
-        # for dia, intervalos in dia_horario.items():
-            # inicio_intervalo, final_intervalo = intervalo.split('-')
-        for tag in self._soup.find_all(text=RGXP_HORARIO, attrs={'class': list(dia_horario)}):
-            disc = Disciplina(tag.parent)
-            print(f'{disc.codigo} - {disc.turma} -> {disc.nome}\n\t{disc.horario}\n')
             
-        # dia = DiaDaSemana(tag['class'][0])
-        #     horario1, *horario2 = tag.get_text().split(',')
+        turmas = []
+        for tag in self._soup.tbody.find_all('tr'):
+            disc = Disciplina(tag)
+            turma_com_horario_valido = True
+            for dia_turma, horarios_turma in disc.horario.items():
+                if dia_turma not in dia_horario or not turma_com_horario_valido: 
+                    turma_com_horario_valido = False
+                    break
+                
+                intervalos_possiveis = list(map(lambda h: h.split('-'), dia_horario[dia_turma]))
+                
+                for ini_aula, fim_aula in map(lambda h: h.split('-'), horarios_turma):
+                    if not any(ini_int <= ini_aula <= fim_aula <= fim_int
+                               for ini_int, fim_int in intervalos_possiveis):
+                        turma_com_horario_valido = False
+                        break
             
-        #     if not em_intervalo(horario1.split('-'), dia_horario[dia]):
-        #         continue
-            
-        #     if horario2 and not em_intervalo(horario2[0], dia_horario[dia]):
-        #         continue
-            
-        #     print(tag)
-        #     print('')
-        #     FILTRO_DIAS_COM_HORARIO = {'text': RGXP_HORARIO, 'attrs': {'class': list(DiaDaSemana)}}
-        #     semana = (tag 
-        #               + tag.find_previous_siblings(**FILTRO_DIAS_COM_HORARIO)
-        #               + tag.find_next_siblings(**FILTRO_DIAS_COM_HORARIO))
-            
-            
+            if turma_com_horario_valido:
+                turmas.append(disc)
+        
+        return turmas

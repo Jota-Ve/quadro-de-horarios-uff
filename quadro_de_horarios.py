@@ -50,7 +50,7 @@ class QuadroDeHorarios():
         self._parametros['utf8'] = '✓'
         self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_dicsciplina
 
-        logging.info(f"Pesquisando parâmetros: {self._parametros!r}")
+        # logging.info(f"Pesquisando parâmetros: {self._parametros!r}")
         resposta = requests.get(self.PAGINA_INICIAL, params=self._parametros)
         return ListaDisciplinas(bs4.BeautifulSoup(resposta.text, features='lxml'))
         
