@@ -41,38 +41,42 @@ class Disciplina:
         
 class ListaDisciplinas:
     
+    #TODO: Avançar cada página do resultado da pesquisa para coletar todas as disciplinas
     def __init__(self, soup: bs4.BeautifulSoup):
         self._soup = soup.find(id="tabela-turmas")
-        
-
+        if self._soup is not None:
+            self.disciplinas = [Disciplina(tag) for tag in self._soup.tbody.find_all('tr')]
+        else:
+            self.disciplinas = []
+            
+            
     def nome_disciplinas(self) -> list[str]:
         if self._soup is None: 
             return []
         
-        return [disc.text.strip() for disc in self._soup.find_all(attrs={'class':'disciplina-nome'})]
+        return [disc.nome for disc in self.disciplinas]
 
     
-    def selecionar_horarios(self, dia_horario: dict[DiaDaSemana, list[str]]):
-        RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
-            
-        turmas = []
-        for tag in self._soup.tbody.find_all('tr'):
-            disc = Disciplina(tag)
+    def selecionar_horarios(self, dia_horario: dict[DiaDaSemana, list[str]]):            
+        disciplinas = []
+        for disc in self.disciplinas:
             turma_com_horario_valido = True
             for dia_turma, horarios_turma in disc.horario.items():
                 if dia_turma not in dia_horario or not turma_com_horario_valido: 
+                    # Avança para a próxima disciplina
                     turma_com_horario_valido = False
                     break
                 
-                intervalos_possiveis = list(map(lambda h: h.split('-'), dia_horario[dia_turma]))
+                horarios_disponiveis = list(map(lambda h: h.split('-'), dia_horario[dia_turma]))
                 
                 for ini_aula, fim_aula in map(lambda h: h.split('-'), horarios_turma):
-                    if not any(ini_int <= ini_aula <= fim_aula <= fim_int
-                               for ini_int, fim_int in intervalos_possiveis):
+                    # Se o horário da disciplina não couber em nenhum dos horários disponíveis
+                    if not any(ini_hora <= ini_aula <= fim_aula <= fim_hora
+                               for ini_hora, fim_hora in horarios_disponiveis):
                         turma_com_horario_valido = False
                         break
             
             if turma_com_horario_valido:
-                turmas.append(disc)
+                disciplinas.append(disc)
         
-        return turmas
+        return disciplinas
