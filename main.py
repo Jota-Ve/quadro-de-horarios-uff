@@ -2,16 +2,18 @@ import logging
 
 import quadro_de_horarios
 from lista_disciplinas import DiaDaSemana
+import cli
 
 logging.basicConfig(level=logging.INFO)
 
 
 def main():
+    args = cli.pega_argumentos()
     quadro = quadro_de_horarios.QuadroDeHorarios()
-    quadro.seleciona_ano_semestre(2024, 1)
-    quadro.seleciona_vagas_para_curso("Sistemas de informação")
-    lista_disc = quadro.pesquisa()
-    # print(f"\nDisciplinas: {lista_disc.nome_disciplinas()}\n")
+    quadro.seleciona_ano_semestre(*args.ano_semestre)
+    quadro.seleciona_vagas_para_curso(args.curso)
+    lista_disc = quadro.pesquisa(args.pesquisa)
+    print(f"\nDisciplinas: {lista_disc.nome_disciplinas()}\n")
     
     disciplinas = lista_disc.selecionar_horarios({
         DiaDaSemana.SEGUNDA: ["00:00-22:00"],
