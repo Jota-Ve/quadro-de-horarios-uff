@@ -27,16 +27,22 @@ class QuadroDeHorarios():
         }
     
     
-    def seleciona_ano_semestre(self, ano: int, semestre: Literal[1, 2]):
+    def seleciona_ano_semestre(self, ano: int|None, semestre: Literal[1, 2]|None):
         """Filtro de ano e semestre das turmas"""
-        self._parametros['q[anosemestre_eq]'] = f'{ano}{semestre}' 
+        if None not in {ano, semestre}:
+            self._parametros['q[anosemestre_eq]'] = f'{ano}{semestre}' 
     
     
     def seleciona_vagas_para_curso(self, curso: str):
         """Filtro de turmas com vagas para o curso informado"""
-        lista_vagas_curso = self._soup.find(id="q_vagas_turma_curso_idcurso_eq")
-        tag_curso = lista_vagas_curso.find(text=re.compile(f'^{curso}$', re.RegexFlag.IGNORECASE)) #type: ignore
-    
+        CURSO_RGXP = re.compile(f'^{curso}$', re.RegexFlag.IGNORECASE)
+        
+        if curso:
+            lista_vagas_curso = self._soup.find(id="q_vagas_turma_curso_idcurso_eq")
+            tag_curso = lista_vagas_curso.find(text=CURSO_RGXP) #type: ignore
+        else:
+            tag_curso = None
+            
         # Se achou o curso, pega o código
         # Se não, usa código inválido para não gerar resultados falsos positivos
         cod_curso: str = tag_curso.parent['value'] if tag_curso is not None else "-1" #type: ignore

@@ -17,13 +17,13 @@ def main():
     
     disciplinas = lista_disc.selecionar_horarios({
         DiaDaSemana.SEGUNDA: ["00:00-22:00"],
-        DiaDaSemana.TERCA: ["18:00-23:59"],
-        DiaDaSemana.QUARTA: ["20:00-23:59"],
+        DiaDaSemana.TERCA: ["10:00-23:59"],
+        DiaDaSemana.QUARTA: ["10:00-23:59"],
         
         }
     )
 
-    print('\n'.join(map(str, disciplinas)))
+    print(f"Filtrando horários: {'\n'.join(map(str, disciplinas))}")
     print("")
     # lista_disc.salvar_HTML("test_busca.html")
 
