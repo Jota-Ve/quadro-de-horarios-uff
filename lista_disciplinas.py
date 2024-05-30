@@ -57,6 +57,14 @@ class ListaDisciplinas:
         return self.__class__(soup_copia)
 
 
+    def __iadd__(self, outro: Self):
+        # Precisa ser deepcopy para não remover as disciplinas do código fonte em outro._soup
+        outro_disciplinas = [copy.deepcopy(disc) for disc in outro.disciplinas]
+        self._soup.tbody.extend([disc._soup for disc in outro_disciplinas])
+        self.disciplinas.extend(outro_disciplinas)
+        return self
+
+
     def nome_disciplinas(self) -> list[str]:
         if self._soup is None:
             return []
