@@ -34,6 +34,18 @@ class QuadroDeHorarios():
         self._parametros['q[anosemestre_eq]'] = f'{ano}{semestre}'
 
 
+    #TODO Talvez generalizar essas funções de filtro
+    def seleciona_localidade(self, local: str):
+        """Filtro de turmas com vagas para o curso informado"""
+        lista_locais = self._soup.find(id="q_idlocalidade_eq")
+        tag_local = lista_locais.find(text=re.compile(f'^{local}$', re.RegexFlag.IGNORECASE)) #type: ignore
+
+        # Se achou o curso, pega o código
+        # Se não, usa código inválido para não gerar resultados falsos positivos
+        cod_local: str = tag_local.parent['value'] if tag_local is not None else "-1" #type: ignore
+        self._parametros['q[idlocalidade_eq]'] = cod_local
+
+
     def seleciona_vagas_para_curso(self, curso: str):
         """Filtro de turmas com vagas para o curso informado"""
         lista_vagas_curso = self._soup.find(id="q_vagas_turma_curso_idcurso_eq")
