@@ -50,14 +50,20 @@ class ListaDisciplinas:
             self.disciplinas = []
 
 
-    def __add__(self, outro: Self):
+    def __add__(self, outro: Self) -> Self:
+        if not isinstance(outro, type(self)):
+            raise TypeError(f'Só pode somar {type(self)!r} com outras instâncias do mesmo tipo, não com {type(outro)!r}')
+
         soup_copia = copy.copy(self._soup)
         outro_disciplinas = outro._soup.tbody.find_all('tr')
         soup_copia.tbody.extend(outro_disciplinas)
         return self.__class__(soup_copia)
 
 
-    def __iadd__(self, outro: Self):
+    def __iadd__(self, outro: Self) -> Self:
+        if not isinstance(outro, type(self)):
+            raise TypeError(f'Só pode somar {type(self)!r} com outras instâncias do mesmo tipo, não com {type(outro)!r}')
+
         # Precisa ser deepcopy para não remover as disciplinas do código fonte em outro._soup
         outro_disciplinas = [copy.deepcopy(disc) for disc in outro.disciplinas]
         self._soup.tbody.extend([disc._soup for disc in outro_disciplinas])
