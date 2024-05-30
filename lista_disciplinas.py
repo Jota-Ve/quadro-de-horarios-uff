@@ -41,7 +41,6 @@ class Disciplina:
 
 class ListaDisciplinas:
 
-    #TODO: Avançar cada página do resultado da pesquisa para coletar todas as disciplinas
     def __init__(self, soup: bs4.BeautifulSoup):
         self._soup = soup if soup.get('id') == "tabela-turmas" else soup.find(id="tabela-turmas")
         if self._soup is not None:
