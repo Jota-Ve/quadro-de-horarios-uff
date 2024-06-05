@@ -29,7 +29,8 @@ class QuadroDeHorarios():
         }
 
 
-    def seleciona_ano_semestre(self, ano: int, semestre: Literal[1, 2]):
+    #TODO: Getter de semestres possíveis
+    def seleciona_semestre(self, ano: int, semestre: Literal[1, 2]):
         """Filtro de ano e semestre das turmas"""
         self._parametros['q[anosemestre_eq]'] = f'{ano}{semestre}'
 

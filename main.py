@@ -8,12 +8,17 @@ from lista_disciplinas import DiaDaSemana, ListaDisciplinas
 logging.basicConfig(level=logging.INFO)
 
 
-def salva_disciplinas_e_horarios(lista_disc: Iterable[ListaDisciplinas]):
-    for lista in lista_disc:
-        for disciplina in lista.disciplinas:
-            with (open(f'disciplinas-{datetime.now().isoformat()}.csv', 'w', encoding='utf-8') as f_disc,
-                  open(f'horarios-{datetime.now().isoformat()}.csv', 'w', encoding='utf-8') as f_hora):
+def salva_disciplinas_e_horarios(lista_disc: Iterable[ListaDisciplinas], nome_disciplinas, nome_horarios, modo):
+    with (open(nome_disciplinas, modo, encoding='utf-8') as f_disc,
+            open(nome_horarios, modo, encoding='utf-8') as f_hora):
 
+        # Cabeçalhos
+        if modo == 'w':
+            f_disc.write('ANO_SEMESTRE;TIPO_DE_OFERTA;CODIGO;NOME;MODULO;TURMA\n')
+            f_hora.write('ANO_SEMESTRE;CODIGO;TURMA;DIA;INICIO;FIM\n')
+
+        for lista in lista_disc:
+            for disciplina in lista.disciplinas:
                 # Disciplinas
                 f_disc.write(';'.join([
                     disciplina.ano_semestre, disciplina.tipo_de_oferta,
@@ -32,15 +37,13 @@ def salva_disciplinas_e_horarios(lista_disc: Iterable[ListaDisciplinas]):
 
 def main():
     quadro = quadro_de_horarios.QuadroDeHorarios()
-    quadro.seleciona_ano_semestre(2024, 1)
     quadro.seleciona_vagas_para_curso("Sistemas de informação")
-    lista_disc = quadro.pesquisa()
-    # print(f"\nDisciplinas: {lista_disc.nome_disciplinas()}\n")
-
-    salva_disciplinas_e_horarios(lista_disc)
-
-    print("")
-    # lista_disc.salvar_HTML("test_busca.html")
+    for ano in range(2009, 2025):
+        for semestre in range(1, 3):
+            quadro.seleciona_semestre(ano, semestre)
+            logging.info(f"Pesquisando {ano} / {semestre}...")
+            lista_disc = quadro.pesquisa(espera=0)
+            salva_disciplinas_e_horarios(lista_disc, 'disciplinas.csv', 'horarios.csv', 'a')
 
 
 if __name__ == '__main__':
