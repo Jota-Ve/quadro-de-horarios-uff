@@ -31,7 +31,7 @@ class Disciplina:
         RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
         FILTRO_DIAS_COM_HORARIO = {'text': RGXP_HORARIO, 'attrs': {'class': list(DiaDaSemana)}}
         semana = self._soup.find_all(**FILTRO_DIAS_COM_HORARIO)
-        self.horario = {DiaDaSemana(tag_dia['class'][0]): tag_dia.get_text().split(',') for tag_dia in semana}
+        self.horario: dict[DiaDaSemana, list[str]] = {DiaDaSemana(tag_dia['class'][0]): tag_dia.get_text().split(',') for tag_dia in semana}
 
 
     def __str__(self) -> str:

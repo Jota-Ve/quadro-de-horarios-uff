@@ -2,7 +2,7 @@
 import logging
 import re
 import time
-from typing import Literal
+from typing import Iterator, Literal
 
 import bs4
 import requests
@@ -57,7 +57,7 @@ class QuadroDeHorarios():
         self._parametros['q[vagas_turma_curso_idcurso_eq]'] = cod_curso
 
 
-    def pesquisa(self, cod_ou_nome_dicsciplina: str="", espera: float=1) -> ListaDisciplinas:
+    def pesquisa(self, cod_ou_nome_dicsciplina: str="", espera: float=1) -> Iterator[ListaDisciplinas]:
         """Pesquisa código ou nome da turma informado, levando
         em conta os possíveis filtros configurados anteriormente
 
@@ -66,7 +66,7 @@ class QuadroDeHorarios():
             espera: Espera entre requisições das páginas seguintes para evitar sobrecarregar o
             servidor ou ser banido. Defaults to .3.
 
-        Returns:
+        Yields:
             Classe que contém dados de todas as disciplinas encontradas
         """
 
@@ -83,17 +83,14 @@ class QuadroDeHorarios():
         self._parametros['utf8'] = '✓'
         self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_dicsciplina
         resposta = self._SESSION.get(self.PAGINA_INICIAL, params=self._parametros)
-        lista_disc = ListaDisciplinas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
+        yield ListaDisciplinas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
         # Continua requisitando e concatenando as disciplinas enquanto houver próxima página de resultados
         pagina = 1
         while resposta := _proxima_pagina():
             pagina +=1
             logging.info(f"Baixou {pagina} páginas de resultados")
-            proxima_lista = ListaDisciplinas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
-            lista_disc += proxima_lista
-
-        return lista_disc
+            yield ListaDisciplinas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
 
     def limpa_filtros(self):
