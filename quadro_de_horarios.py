@@ -12,12 +12,13 @@ from lista_disciplinas import ListaDisciplinas
 
 class QuadroDeHorarios():
     """Classe para a busca de disciplinas utilizando os filtros disponíveis"""
-
-    PAGINA_INICIAL = r'https://app.uff.br/graduacao/quadrodehorarios/'
+    
+    __dominio = r'https://app.uff.br'
+    __caminho = r'/graduacao/quadrodehorarios'
     _SESSION = requests.Session()
 
     def __init__(self):
-        self._soup = bs4.BeautifulSoup(requests.get(self.PAGINA_INICIAL).text, features='lxml')
+        self._soup = bs4.BeautifulSoup(requests.get(self.pagina_inicial).text, features='lxml')
 
         self._parametros = {
             # 'q[disciplina_cod_departamento_eq]': departamento,
@@ -28,6 +29,8 @@ class QuadroDeHorarios():
             # 'q[idturmamodalidade_eq]': turma_modalidade
         }
 
+    @property
+    def pagina_inicial(self): return self.__dominio + self.__caminho
 
     #TODO: Getter de semestres possíveis
     def seleciona_semestre(self, ano: int, semestre: Literal[1, 2]):
@@ -71,19 +74,20 @@ class QuadroDeHorarios():
             Classe que contém dados de todas as disciplinas encontradas
         """
 
+        if espera: time.sleep(espera)
         def _proxima_pagina():
             """Retorna a próxima página de resultados, se existir"""
             if (prox_pag := resposta_bs4.find('a', attrs={'rel': 'next', 'class': 'page-link'})) is None:
                 return None
 
             if espera: time.sleep(espera)
-            link_prox_pag = self.PAGINA_INICIAL.replace('/graduacao/quadrodehorarios/', prox_pag['href'])
+            link_prox_pag = self.__dominio + prox_pag['href']
             return self._SESSION.get(link_prox_pag)
 
 
         self._parametros['utf8'] = '✓'
         self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_dicsciplina
-        resposta = self._SESSION.get(self.PAGINA_INICIAL, params=self._parametros)
+        resposta = self._SESSION.get(self.pagina_inicial, params=self._parametros)
         yield ListaDisciplinas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
         # Continua requisitando e concatenando as disciplinas enquanto houver próxima página de resultados

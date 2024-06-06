@@ -52,7 +52,7 @@ def main():
             quadro.seleciona_semestre(ano, semestre)
             logging.info(f"Pesquisando {ano} / {semestre}...")
             lista_disc = quadro.pesquisa(espera=1)
-            salva_disciplinas_e_horarios(lista_disc, 'disciplinas.csv', 'horarios.csv', 'a')
+            salva_disciplinas_e_horarios(lista_disc, 'disciplinas.csv', 'horarios.csv', 'w')
 
 
 if __name__ == '__main__':

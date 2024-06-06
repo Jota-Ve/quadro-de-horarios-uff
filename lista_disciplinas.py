@@ -22,13 +22,14 @@ class Disciplina:
     def __init__(self, soup: bs4.BeautifulSoup) -> None:
         self._soup = soup
         tags = self._soup.find_all('td')
+        self.link_info = r'https://app.uff.br' + tags[0].contents[0]['href']
         self.ano_semestre = self._soup['data-anosemestre'].strip()
         self.codigo = tags[0].get_text().strip()
         self.nome = tags[1].get_text().strip()
         self.turma = tags[2].get_text().strip()
         self.modulo = tags[3].get_text().strip()
         self.tipo_de_oferta = tags[4].get_text().strip()
-
+        
         self.horario: dict[DiaDaSemana, list[horario.Horario]] = {}
         RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
         FILTRO_DIAS_COM_HORARIO = {'text': RGXP_HORARIO, 'attrs': {'class': list(DiaDaSemana)}}
@@ -36,6 +37,7 @@ class Disciplina:
         for tag_dia in self._soup.find_all(**FILTRO_DIAS_COM_HORARIO):
             self.horario[DiaDaSemana(tag_dia['class'][0])] = [horario.Horario(h) for h in tag_dia.get_text().split(',')]
 
+    
 
     def __str__(self) -> str:
         return (f'{self.codigo} - {self.nome} ({self.turma}): '
