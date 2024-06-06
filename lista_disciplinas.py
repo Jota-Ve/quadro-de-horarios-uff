@@ -1,13 +1,49 @@
 
+from datetime import datetime
 import re
 from typing import Self
 import copy
+
+import requests
 import horario
 import bs4
 
 
+class DisciplinaInfo:
+    RGX_TITULO = re.compile(r'Turma ([\w\d]+) de ([\w\d]+) - (.*)', re.IGNORECASE)
+    RGX_SEMESTRE = re.compile(r'\d+')
+    
+    def __init__(self, soup: bs4.BeautifulSoup) -> None:
+        self._soup = soup
+        self.pagina_inicial = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
+        print(self.pagina_inicial)
+        match = self.RGX_TITULO.search(soup.h1.text.strip())
+        self.turma = match.group(1)
+        self.codigo = match.group(2)
+        self.nome = match.group(3)
+        self.ano_semestre = ''.join(self.RGX_SEMESTRE.findall(soup.find('dt', text='Ano/Semestre').find_next('dd').text))
+        self.ferias = soup.find('dt', text='Curso de Férias').find_next('dd').text == 'Sim'
+        if (atualizacao := soup.find('dt', text='Última Atualização').find_next('dd').text).strip() != '-':
+            self.ultima_atualizacao: datetime|None = datetime.strptime(atualizacao, r'%d/%m/%Y às %H:%M h')
+        else:
+            self.ultima_atualizacao = None
+        self.vagas = {}
+        vagas = soup.find('h5', text='Vagas Alocadas').parent.parent
+        for curso in vagas.table.find_all('tr')[2:]:
+            self.vagas[curso.contents[1].text.split('- ')[1]] = {
+                'vagas_regular': int(curso.contents[3].text),
+                'vagas_vestibular': int(curso.contents[5].text),
+                'inscritos_regular': int(curso.contents[7].text),
+                'inscritos_vestibular': int(curso.contents[9].text),
+                'excedentes': int(curso.contents[11].text),
+                'candidatos': int(curso.contents[11].text)
+            }
+        
+        
 
 class Disciplina:
+    _SESSION = requests.Session()
+    
     def __init__(self, soup: bs4.BeautifulSoup) -> None:
         self._soup = soup
         tags = self._soup.find_all('td')
@@ -26,12 +62,21 @@ class Disciplina:
         for tag_dia in self._soup.find_all(**FILTRO_DIAS_COM_HORARIO):
             self.horario[horario.DiaDaSemana(tag_dia['class'][0])] = [horario.Horario(h) for h in tag_dia.get_text().split(',')]
 
-    
 
     def __str__(self) -> str:
         return (f'{self.codigo} - {self.nome} ({self.turma}): '
                 + ', '.join([f'{dia.name[:3]}={hora}' for dia, hora in self.horario.items()]))
 
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}({self.__str__()})'
+
+    
+    def info(self) -> DisciplinaInfo:
+        soup = bs4.BeautifulSoup(self._SESSION.get(self.link_info).text, features='lxml')
+        return DisciplinaInfo(soup.find('div', attrs={'class': "container-fluid mt-3"}))
+    
+    
 
 class ListaDisciplinas:
 
