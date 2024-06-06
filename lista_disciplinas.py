@@ -2,7 +2,7 @@
 import enum
 import re
 from typing import Iterable
-
+import horario
 import bs4
 
 
@@ -57,22 +57,24 @@ class ListaDisciplinas:
         return [disc.nome for disc in self.disciplinas]
 
     
-    def selecionar_horarios(self, dia_horario: dict[DiaDaSemana, list[str]]):            
+    def selecionar_horarios(self, dia_horario: dict[DiaDaSemana, list[horario.Horario|str]]):            
         disciplinas = []
         for disc in self.disciplinas:
             turma_com_horario_valido = True
+            horarios_turma: list[horario.Horario|str]
             for dia_turma, horarios_turma in disc.horario.items():
                 if dia_turma not in dia_horario or not turma_com_horario_valido: 
                     # Avança para a próxima disciplina
                     turma_com_horario_valido = False
                     break
                 
-                horarios_disponiveis = list(map(lambda h: h.split('-'), dia_horario[dia_turma]))
-                
-                for ini_aula, fim_aula in map(lambda h: h.split('-'), horarios_turma):
+                horarios_disponiveis = [
+                    horario.Horario(hora) if isinstance(hora, str) 
+                    else hora for hora in dia_horario[dia_turma]
+                ]
+                for aula in horarios_turma:
                     # Se o horário da disciplina não couber em nenhum dos horários disponíveis
-                    if not any(ini_hora <= ini_aula <= fim_aula <= fim_hora
-                               for ini_hora, fim_hora in horarios_disponiveis):
+                    if not any(aula in hora for hora in horarios_disponiveis):
                         turma_com_horario_valido = False
                         break
             
