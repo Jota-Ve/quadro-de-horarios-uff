@@ -2,8 +2,10 @@ from datetime import datetime
 import logging
 from typing import Iterable
 
+import horario
 import quadro_de_horarios
 from lista_disciplinas import DiaDaSemana, ListaDisciplinas
+import cli
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,6 +38,9 @@ def salva_disciplinas_e_horarios(lista_disc: Iterable[ListaDisciplinas], nome_di
 
 
 def main():
+    args = cli.pega_argumentos()
+    logging.debug(f"Argumentos: {args}")
+    
     quadro = quadro_de_horarios.QuadroDeHorarios()
     quadro.seleciona_vagas_para_curso("Sistemas de informação")
     for ano in range(2009, 2025):

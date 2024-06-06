@@ -5,11 +5,32 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: Arquivo Atual",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        }, 
+        
+        {
             "name": "Python Debugger: main",
             "type": "debugpy",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal"
+        }, 
+        {
+            "name": "Python Debugger: main com args",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "teste",
+                "-curso", "Sistemas de Informação",
+                // "-seg", ""
+                "-ano_semestre", "2024", "1"
+            ]
         }
     ]
 }
