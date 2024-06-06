@@ -1,21 +1,18 @@
 import argparse
-import dataclasses
 from collections import abc
-import re
 import horario
-import lista_disciplinas
 
 
 
-def filtra_horario(args) -> dict[lista_disciplinas.DiaDaSemana, list[horario.Horario]]:
+def filtra_horario(args) -> dict[horario.DiaDaSemana, list[horario.Horario]]:
     horarios = {}
 
-    if args.seg: horarios[lista_disciplinas.DiaDaSemana.SEGUNDA] = args.seg
-    if args.ter: horarios[lista_disciplinas.DiaDaSemana.TERCA] = args.ter
-    if args.qua: horarios[lista_disciplinas.DiaDaSemana.QUARTA] = args.qua
-    if args.qui: horarios[lista_disciplinas.DiaDaSemana.QUINTA] = args.qui
-    if args.sex: horarios[lista_disciplinas.DiaDaSemana.SEXTA] = args.sex
-    if args.sab: horarios[lista_disciplinas.DiaDaSemana.SABADO] = args.sab
+    if args.seg: horarios[horario.DiaDaSemana.SEGUNDA] = args.seg
+    if args.ter: horarios[horario.DiaDaSemana.TERCA] = args.ter
+    if args.qua: horarios[horario.DiaDaSemana.QUARTA] = args.qua
+    if args.qui: horarios[horario.DiaDaSemana.QUINTA] = args.qui
+    if args.sex: horarios[horario.DiaDaSemana.SEXTA] = args.sex
+    if args.sab: horarios[horario.DiaDaSemana.SABADO] = args.sab
 
     return horarios
 
