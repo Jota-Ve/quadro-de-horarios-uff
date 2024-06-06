@@ -1,6 +1,16 @@
 from collections import abc
+import enum
 import re
-from typing import Self
+
+
+class DiaDaSemana(enum.StrEnum):
+    SEGUNDA = "horario-segunda"
+    TERCA   = "horario-terca"
+    QUARTA  = "horario-quarta"
+    QUINTA  = "horario-quinta"
+    SEXTA   = "horario-sexta"
+    SABADO  = "horario-sabado"
+
 
 
 class Horario(abc.Container):

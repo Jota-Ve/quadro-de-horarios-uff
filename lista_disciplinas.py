@@ -1,20 +1,9 @@
 
-import enum
 import re
-from typing import Iterable, Self
+from typing import Self
 import copy
 import horario
 import bs4
-
-
-class DiaDaSemana(enum.StrEnum):
-    SEGUNDA = "horario-segunda"
-    TERCA   = "horario-terca"
-    QUARTA  = "horario-quarta"
-    QUINTA  = "horario-quinta"
-    SEXTA   = "horario-sexta"
-    SABADO  = "horario-sabado"
-
 
 
 
@@ -30,12 +19,12 @@ class Disciplina:
         self.modulo = tags[3].get_text().strip()
         self.tipo_de_oferta = tags[4].get_text().strip()
         
-        self.horario: dict[DiaDaSemana, list[horario.Horario]] = {}
+        self.horario: dict[horario.DiaDaSemana, list[horario.Horario]] = {}
         RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
-        FILTRO_DIAS_COM_HORARIO = {'text': RGXP_HORARIO, 'attrs': {'class': list(DiaDaSemana)}}
+        FILTRO_DIAS_COM_HORARIO = {'text': RGXP_HORARIO, 'attrs': {'class': list(horario.DiaDaSemana)}}
         
         for tag_dia in self._soup.find_all(**FILTRO_DIAS_COM_HORARIO):
-            self.horario[DiaDaSemana(tag_dia['class'][0])] = [horario.Horario(h) for h in tag_dia.get_text().split(',')]
+            self.horario[horario.DiaDaSemana(tag_dia['class'][0])] = [horario.Horario(h) for h in tag_dia.get_text().split(',')]
 
     
 
@@ -82,11 +71,11 @@ class ListaDisciplinas:
         return [disc.nome for disc in self.disciplinas]
 
     
-    def selecionar_horarios(self, dia_horario: dict[DiaDaSemana, list[horario.Horario|str]]):            
+    def selecionar_horarios(self, dia_horario: dict[horario.DiaDaSemana, list[horario.Horario|str]]):            
         disciplinas = []
         for disc in self.disciplinas:
             turma_com_horario_valido = True
-            horarios_turma: list[horario.Horario|str]
+
             for dia_turma, horarios_turma in disc.horario.items():
                 if dia_turma not in dia_horario or not turma_com_horario_valido:
                     # Avança para a próxima disciplina

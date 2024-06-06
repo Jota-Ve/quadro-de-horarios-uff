@@ -5,7 +5,7 @@ from typing import Iterable, Literal
 
 import horario
 import quadro_de_horarios
-from lista_disciplinas import DiaDaSemana, ListaDisciplinas
+from lista_disciplinas import ListaDisciplinas
 import cli
 
 logging.basicConfig(level=logging.INFO)
