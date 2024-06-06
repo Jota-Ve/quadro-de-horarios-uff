@@ -24,6 +24,13 @@ class Horario(abc.Container):
         self.__fim = horario[6:]
     
     
+    def __str__(self) -> str:
+        return self.__horario
+    
+    def __repr__(self) -> str:
+        return f'{self.__class__.__qualname__}({self.__horario})'
+    
+    
     def __contains__(self, x) -> bool:
         if isinstance(x, self.__class__):
             return self.__inicio <= x.__inicio <= x.__fim <= self.__fim

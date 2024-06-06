@@ -22,7 +22,7 @@ def filtra_horario(args) -> dict[lista_disciplinas.DiaDaSemana, list[horario.Hor
 
 def pega_argumentos():
     parser = argparse.ArgumentParser()
-    parser.add_argument('pesquisa', help='Código ou Nome da disciplina', default='')
+    parser.add_argument('-pesquisa', help='Código ou Nome da disciplina', default='')
     parser.add_argument('-curso', help='Curso para qual a disciplina precisa ter vagas', default='')
     parser.add_argument('-seg', help='Horários disponíveis na segunda', type=horario.Horario, default=[], nargs='*')
     parser.add_argument('-ter', help='Horários disponíveis na terça', type=horario.Horario, default=[], nargs='*')
