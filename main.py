@@ -1,12 +1,13 @@
-from datetime import datetime
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Literal
 
+import cli
 import horario
 import quadro_de_horarios
+import relatorio
 from lista_disciplinas import ListaDisciplinas
-import cli
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,7 +17,7 @@ def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_
     cabecalho_disciplinas = modo == 'w' or not Path(nome_disciplinas).exists()
     cabecalho_horarios    = modo == 'w' or not Path(nome_horarios).exists()
     cabecalho_vagas    = modo == 'w' or not Path(nome_vagas).exists()
-    
+
     with (open(nome_disciplinas, modo, encoding='utf-8') as f_disc,
             open(nome_horarios, modo, encoding='utf-8') as f_hora,
             open(nome_vagas, modo, encoding='utf-8') as f_vagas):
@@ -31,13 +32,13 @@ def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_
         for lista in it_list_disc:
             for disciplina in lista.disciplinas:
                 # Vagas
-                info = disciplina.info()                
+                info = disciplina.info()
                 for curso, vagas in info.vagas.items():
                     linha_vagas = ';'.join([
-                        info.ano_semestre, 
+                        info.ano_semestre,
                         info.codigo,
-                        info.turma, 
-                        curso, 
+                        info.turma,
+                        curso,
                         str(vagas['vagas_regular']),
                         str(vagas['vagas_vestibular']),
                         str(vagas['inscritos_regular']),
@@ -47,7 +48,7 @@ def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_
                     ]) + '\n'
 
                     f_vagas.write(linha_vagas)
-                
+
                 # Disciplinas
                 f_disc.write(';'.join([
                     disciplina.ano_semestre, disciplina.codigo, disciplina.turma,
@@ -64,18 +65,36 @@ def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_
                         ]) + '\n')
 
 
+def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: Iterable[tuple[int, Literal[1,2]]], pesquisa: str):
+    for ano, semestre in ano_semestre:
+        quadro.seleciona_semestre(ano, semestre)
+        logging.info(f"Pesquisando {ano} / {semestre}...")
+        lista_disc = quadro.pesquisa(pesquisa, espera=0)
+        salva_disciplinas_e_horarios(lista_disc, 'disciplinas.csv', 'horarios.csv', 'vagas.csv')
+
+
 def main():
     args = cli.pega_argumentos()
     logging.debug(f"Argumentos: {args}")
-    
-    quadro = quadro_de_horarios.QuadroDeHorarios()
-    quadro.seleciona_vagas_para_curso("Sistemas de informação")
-    for ano in range(2011, 2025):
-        for semestre in range(1, 3):
-            quadro.seleciona_semestre(ano, semestre)
-            logging.info(f"Pesquisando {ano} / {semestre}...")
-            lista_disc = quadro.pesquisa(espera=.2)
-            salva_disciplinas_e_horarios(lista_disc, 'disciplinas.csv', 'horarios.csv', 'vagas.csv')
+
+    # quadro = quadro_de_horarios.QuadroDeHorarios()
+    # quadro.seleciona_vagas_para_curso("Sistemas de informação")
+
+    rel = relatorio.Relatorios()
+    assert rel.seleciona_departamento("sistemas de informação")
+
+    with open("reprovados.csv", "a", encoding="utf-8") as f:
+        # Cabeçalho
+        f.write('ANO_SEMESTRE;CODIGO;DISCIPLINA;DEPARTAMENTO;REPROVADOS\n')
+
+        departamento = rel.departamento_atual()
+        for ano in range(2011, 2024):
+            for semestre in (1,2):
+                dados_reprovacao = rel.abre_reprovados(ano, semestre)
+                assert dados_reprovacao, "Não conseguiu extrair dados de reprovados"
+
+                for codigo, disciplina, reprovados in dados_reprovacao:
+                    f.write(';'.join([f'{ano}{semestre}', codigo, disciplina, departamento, f'{reprovados}']) + '\n')
 
 
 if __name__ == '__main__':
