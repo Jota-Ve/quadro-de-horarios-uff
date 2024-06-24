@@ -84,16 +84,22 @@ class _RelatorioReprovados:
         else:
             raise RuntimeError("Não achou janela de reprovados_coordenacao")
 
-        self._maximo_de_resultados_por_pagina()
 
 
     def _maximo_de_resultados_por_pagina(self):
         select_num_resultados = Select(self._driver.find_element(*self._LOC_NUM_RESULTADOS))
         max_num = max([int(op.get_attribute('value')) for op in select_num_resultados.options])
         select_num_resultados.select_by_value(str(max_num))
+        return max_num
 
 
     def dados(self) -> list[tuple[str, str, int]]:
+        max_resultados_p_pagina = self._maximo_de_resultados_por_pagina()
+        info_reprovados = self._driver.find_element(By.XPATH, '//div[@id="tabela-reprovados_info"]').text
+        n_resultados_total = int(re.match(r'Showing \d+ to \d+ of (\d+) entries', info_reprovados).group(1))
+        
+        assert n_resultados_total <= max_resultados_p_pagina, "Não conseguiu extrair todos os resultados da página de reprovados"
+        
         resultados = [re.match(r'(\w+\d+) (.+) (\d+)', el.text) for el in self._driver.find_elements(By.TAG_NAME, 'tr')[1:]]
         dados = sorted([(x.group(1), x.group(2), int(x.group(3))) for x in resultados[1:]], key=lambda x: x[2])
         return dados
