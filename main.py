@@ -1,15 +1,11 @@
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Literal
 
 import cli
-import horario
 import quadro_de_horarios
 import relatorio
 from lista_disciplinas import ListaDisciplinas
-
-logging.basicConfig(level=logging.INFO)
 
 
 def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, nome_vagas: str|Path):
@@ -73,9 +69,8 @@ def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: Iterable
         salva_disciplinas_e_horarios(lista_disc, 'disciplinas.csv', 'horarios.csv', 'vagas.csv')
 
 
-def main():
-    args = cli.pega_argumentos()
-    logging.debug(f"Argumentos: {args}")
+def main(args):
+    logger.debug(f"Argumentos: {args}")
 
     # quadro = quadro_de_horarios.QuadroDeHorarios()
     # quadro.seleciona_vagas_para_curso("Sistemas de informação")
@@ -98,4 +93,13 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    args = cli.pega_argumentos()
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s: %(message)s', 
+                        handlers=[
+                            logging.FileHandler('main.log', encoding='utf-8'),
+                            logging.StreamHandler()
+                        ],
+                        level=logging.DEBUG if args.debug else logging.INFO)
+    
+    main(args)

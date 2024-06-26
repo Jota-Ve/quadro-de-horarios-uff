@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Literal
 from selenium import webdriver
@@ -5,6 +6,12 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
+
+# Remove logs de nível abaixo de 'warning' para as seguintes bibliotecas
+logging.getLogger('selenium').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
 
 class Relatorios:
     PAGINA_INICIAL = r'https://app.uff.br/graduacao/quadrodehorarios/relatorios'
@@ -15,11 +22,23 @@ class Relatorios:
 
 
     def __init__(self) -> None:
+        logger.debug(f"Abrindo {self}")
         self._driver = webdriver.Chrome()
         self._driver.get(self.PAGINA_INICIAL)
+        self._departamento_atual: str|None = None
+
+    
+    def __repr__(self) -> str:
+        return (
+            f'<{__name__}.{type(self).__name__}({self.PAGINA_INICIAL!r}, '
+            f'{self.departamento_atual() if getattr(self, "_driver", None) else "Carregando..."})>'
+        )
 
 
     def departamento_atual(self):
+        if self._departamento_atual: 
+            return self._departamento_atual
+        
         select_element = self._driver.find_element(*self._LOC_DEPARTAMENTO)
         return Select(select_element).first_selected_option.text
 
@@ -32,12 +51,9 @@ class Relatorios:
             if departamento in elemento.text.lower():
                 dep_selecionado = elemento.text
                 select.select_by_index(i)
+                self._departamento_atual = dep_selecionado
                 return dep_selecionado
 
-
-    def semestre_atual(self) -> str | None:
-        select_element = self._driver.find_element(*self._LOC_SEMESTRE_REPROVADOS)
-        return Select(select_element).first_selected_option.get_attribute('value')
 
     def abre_reprovados(self, ano: int, semestre: Literal[1, 2]) -> list[tuple[str, str, int]] | None:
         # Seleciona o semestre
@@ -66,7 +82,7 @@ class Relatorios:
 
 
 class _RelatorioReprovados:
-    _LOC_NUM_RESULTADOS: tuple[Literal['xpath'], Literal['//select[@name="tabela-reprovados_length"]']] = (By.XPATH, '//select[@name="tabela-reprovados_length"]')
+    _LOC_NUM_RESULTADOS = (By.XPATH, '//select[@name="tabela-reprovados_length"]')
 
 
     def __init__(self, driver: webdriver.Chrome) -> None:
