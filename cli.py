@@ -28,6 +28,7 @@ def pega_argumentos():
     parser.add_argument('-sex', help='Horários disponíveis na sexta', type=horario.Horario, default=[], nargs='*')
     parser.add_argument('-sab', help='Horários disponíveis no sábado', type=horario.Horario, default=[], nargs='*')
     parser.add_argument('-ano_semestre', help='Ano e semstre das disciplinas', type=int, default=(None, None), nargs=2)
+    parser.add_argument('-debug', help='Executando em modo DEBUG', action='store_true')
 
     args = parser.parse_args()
     args.horarios = filtra_horario(args)
