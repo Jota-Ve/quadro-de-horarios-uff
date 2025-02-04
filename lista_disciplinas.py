@@ -10,10 +10,11 @@ import bs4
 
 
 class DisciplinaInfo:
+    #TODO: Suportar DisciplinaInfo vazia, sem informações, e ser == False nesse caso
     RGX_TITULO = re.compile(r'Turma ([\w\d]+) de ([\w\d]+) - (.*)', re.IGNORECASE)
     RGX_SEMESTRE = re.compile(r'\d+')
-    
-    def __init__(self, soup: bs4.BeautifulSoup) -> None:
+
+    def __init__(self, soup: bs4.element.Tag) -> None:
         self._soup = soup
         self.pagina_inicial = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
         print(self.pagina_inicial)
@@ -38,12 +39,12 @@ class DisciplinaInfo:
                 'excedentes': int(curso.contents[11].text),
                 'candidatos': int(curso.contents[11].text)
             }
-        
-        
+
+
 
 class Disciplina:
     _SESSION = requests.Session()
-    
+
     def __init__(self, soup: bs4.BeautifulSoup) -> None:
         self._soup = soup
         tags = self._soup.find_all('td')
@@ -54,11 +55,11 @@ class Disciplina:
         self.turma = tags[2].get_text().strip()
         self.modulo = tags[3].get_text().strip()
         self.tipo_de_oferta = tags[4].get_text().strip()
-        
+
         self.horario: dict[horario.DiaDaSemana, list[horario.Horario]] = {}
         RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
         FILTRO_DIAS_COM_HORARIO = {'text': RGXP_HORARIO, 'attrs': {'class': list(horario.DiaDaSemana)}}
-        
+
         for tag_dia in self._soup.find_all(**FILTRO_DIAS_COM_HORARIO):
             self.horario[horario.DiaDaSemana(tag_dia['class'][0])] = [horario.Horario(h) for h in tag_dia.get_text().split(',')]
 
@@ -71,12 +72,15 @@ class Disciplina:
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.__str__()})'
 
-    
-    def info(self) -> DisciplinaInfo:
+
+    def info(self) -> DisciplinaInfo|None:
+        #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
         soup = bs4.BeautifulSoup(self._SESSION.get(self.link_info).text, features='lxml')
-        return DisciplinaInfo(soup.find('div', attrs={'class': "container-fluid mt-3"}))
-    
-    
+        info_soup = soup.find('div', attrs={'class': "container-fluid mt-3"})
+        if info_soup is not None:
+            return DisciplinaInfo(info_soup)
+
+
 
 class ListaDisciplinas:
 
@@ -115,8 +119,8 @@ class ListaDisciplinas:
 
         return [disc.nome for disc in self.disciplinas]
 
-    
-    def selecionar_horarios(self, dia_horario: dict[horario.DiaDaSemana, list[horario.Horario|str]]):            
+
+    def selecionar_horarios(self, dia_horario: dict[horario.DiaDaSemana, list[horario.Horario|str]]):
         disciplinas = []
         for disc in self.disciplinas:
             turma_com_horario_valido = True
@@ -126,9 +130,9 @@ class ListaDisciplinas:
                     # Avança para a próxima disciplina
                     turma_com_horario_valido = False
                     break
-                
+
                 horarios_disponiveis = [
-                    horario.Horario(hora) if isinstance(hora, str) 
+                    horario.Horario(hora) if isinstance(hora, str)
                     else hora for hora in dia_horario[dia_turma]
                 ]
                 for aula in horarios_turma:
