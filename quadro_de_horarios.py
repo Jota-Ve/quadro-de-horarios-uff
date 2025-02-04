@@ -12,7 +12,7 @@ from lista_disciplinas import ListaDisciplinas
 
 class QuadroDeHorarios():
     """Classe para a busca de disciplinas utilizando os filtros disponíveis"""
-    
+
     __dominio = r'https://app.uff.br'
     __caminho = r'/graduacao/quadrodehorarios'
     _SESSION = requests.Session()
@@ -94,7 +94,7 @@ class QuadroDeHorarios():
         pagina = 1
         while resposta := _proxima_pagina():
             pagina +=1
-            logging.info(f"Baixou {pagina} páginas de resultados")
+            logging.info(f"Baixou {pagina} páginas de resultados") #TODO: Informar qual a ultima pagina
             yield ListaDisciplinas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
 

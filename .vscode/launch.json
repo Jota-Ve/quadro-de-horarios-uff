@@ -10,15 +10,16 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"
-        }, 
-        
+        },
+
         {
             "name": "Python Debugger: main",
             "type": "debugpy",
             "request": "launch",
             "program": "main.py",
-            "console": "integratedTerminal"
-        }, 
+            "console": "integratedTerminal",
+            "args": ["-debug"]
+        },
         {
             "name": "Python Debugger: main com args",
             "type": "debugpy",

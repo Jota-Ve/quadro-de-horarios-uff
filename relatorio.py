@@ -23,11 +23,11 @@ class Relatorios:
 
     def __init__(self) -> None:
         logger.debug(f"Abrindo {self}")
-        self._driver = webdriver.Chrome()
+        self._driver = webdriver.Edge()
         self._driver.get(self.PAGINA_INICIAL)
         self._departamento_atual: str|None = None
 
-    
+
     def __repr__(self) -> str:
         return (
             f'<{__name__}.{type(self).__name__}({self.PAGINA_INICIAL!r}, '
@@ -36,9 +36,9 @@ class Relatorios:
 
 
     def departamento_atual(self):
-        if self._departamento_atual: 
+        if self._departamento_atual:
             return self._departamento_atual
-        
+
         select_element = self._driver.find_element(*self._LOC_DEPARTAMENTO)
         return Select(select_element).first_selected_option.text
 
@@ -113,9 +113,9 @@ class _RelatorioReprovados:
         max_resultados_p_pagina = self._maximo_de_resultados_por_pagina()
         info_reprovados = self._driver.find_element(By.XPATH, '//div[@id="tabela-reprovados_info"]').text
         n_resultados_total = int(re.match(r'Showing \d+ to \d+ of (\d+) entries', info_reprovados).group(1))
-        
+
         assert n_resultados_total <= max_resultados_p_pagina, "Não conseguiu extrair todos os resultados da página de reprovados"
-        
+
         resultados = [re.match(r'(\w+\d+) (.+) (\d+)', el.text) for el in self._driver.find_elements(By.TAG_NAME, 'tr')[1:]]
         dados = sorted([(x.group(1), x.group(2), int(x.group(3))) for x in resultados[1:]], key=lambda x: x[2])
         return dados
