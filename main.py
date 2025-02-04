@@ -1,35 +1,59 @@
-from datetime import datetime
+import datetime
 import logging
 from pathlib import Path
 from typing import Iterable, Literal
 
-import horario
-import quadro_de_horarios
-from lista_disciplinas import DiaDaSemana, ListaDisciplinas
 import cli
+import quadro_de_horarios
+import relatorio
+from lista_disciplinas import ListaDisciplinas
 
-logging.basicConfig(level=logging.INFO)
 
+def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, nome_vagas: str|Path):
+    modo = 'w'
+    cabecalho_disciplinas = (modo == 'w' or not Path(nome_disciplinas).exists())
+    cabecalho_horarios    = (modo == 'w' or not Path(nome_horarios).exists())
+    cabecalho_vagas       = (modo == 'w' or not Path(nome_vagas).exists())
 
-def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, modo: Literal['w', 'a']):
-    cabecalho_disciplinas = modo == 'w' or not Path(nome_disciplinas).exists()
-    cabecalho_horarios    = modo == 'w' or not Path(nome_horarios).exists()
-    
     with (open(nome_disciplinas, modo, encoding='utf-8') as f_disc,
-            open(nome_horarios, modo, encoding='utf-8') as f_hora):
+            open(nome_horarios, modo, encoding='utf-8') as f_hora,
+            open(nome_vagas, modo, encoding='utf-8') as f_vagas):
 
         if cabecalho_disciplinas:
-            f_disc.write('ANO_SEMESTRE;TIPO_DE_OFERTA;CODIGO;NOME;MODULO;TURMA\n')
+            f_disc.write('ANO_SEMESTRE;CODIGO;TURMA;TIPO_DE_OFERTA;NOME;MODULO;LINK\n')
         if cabecalho_horarios:
             f_hora.write('ANO_SEMESTRE;CODIGO;TURMA;DIA;INICIO;FIM\n')
+        if cabecalho_vagas:
+            f_vagas.write('ANO_SEMESTRE;CODIGO;TURMA;NOME;VAGAS_REGULAR;VAGAS_VESTIBULAR;INSCRITOS_REGULAR;INSCRITOS_VESTIBULAR;EXCEDENTES;CANDIDATOS\n')
 
         for lista in it_list_disc:
             for disciplina in lista.disciplinas:
+                # Vagas
+                info = disciplina.info()
+                # ignora turmas q nao possuem informações, como as de yoga de 2009/2
+                if info is None: continue
+
+                for curso, vagas in info.vagas.items():
+                    linha_vagas = ';'.join([
+                        info.ano_semestre,
+                        info.codigo,
+                        info.turma,
+                        curso,
+                        str(vagas['vagas_regular']),
+                        str(vagas['vagas_vestibular']),
+                        str(vagas['inscritos_regular']),
+                        str(vagas['inscritos_vestibular']),
+                        str(vagas['excedentes']),
+                        str(vagas['candidatos']),
+                    ]) + '\n'
+
+                    f_vagas.write(linha_vagas)
+
                 # Disciplinas
                 f_disc.write(';'.join([
-                    disciplina.ano_semestre, disciplina.tipo_de_oferta,
-                    disciplina.codigo, disciplina.nome, disciplina.modulo,
-                    disciplina.turma
+                    disciplina.ano_semestre, disciplina.codigo, disciplina.turma,
+                    disciplina.tipo_de_oferta, disciplina.nome, disciplina.modulo,
+                    disciplina.link_info
                 ]) + '\n')
 
                 # Horários
@@ -41,19 +65,36 @@ def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_
                         ]) + '\n')
 
 
-def main():
-    args = cli.pega_argumentos()
-    logging.debug(f"Argumentos: {args}")
-    
+def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: Iterable[tuple[int, Literal[1,2]]], pesquisa: str=''):
+    for ano, semestre in ano_semestre:
+        quadro.seleciona_semestre(ano, semestre)
+        logging.info(f"Pesquisando {ano} / {semestre}...")
+        lista_disc = quadro.pesquisa(pesquisa, espera=0)
+        salva_disciplinas_e_horarios(lista_disc, 'disciplinas.csv', 'horarios.csv', 'vagas.csv')
+
+
+def salva_turmas():
     quadro = quadro_de_horarios.QuadroDeHorarios()
     quadro.seleciona_vagas_para_curso("Sistemas de informação")
-    for ano in range(2009, 2025):
-        for semestre in range(1, 3):
-            quadro.seleciona_semestre(ano, semestre)
-            logging.info(f"Pesquisando {ano} / {semestre}...")
-            lista_disc = quadro.pesquisa(espera=1)
-            salva_disciplinas_e_horarios(lista_disc, 'disciplinas.csv', 'horarios.csv', 'a')
+    hoje = datetime.date.today()
+    extracao(quadro_de_horarios.QuadroDeHorarios(),
+             [(ano, sem) for ano in range(2011, 2025) for sem in (1,2)
+              if not (ano==hoje.year and sem==hoje.month//6)])
+
+
+def main(args):
+    logger.debug(f"Argumentos: {args}")
+    salva_turmas()
 
 
 if __name__ == '__main__':
-    main()
+    args = cli.pega_argumentos()
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s: %(message)s',
+                        handlers=[
+                            logging.FileHandler('main.log', encoding='utf-8'),
+                            logging.StreamHandler()
+                        ],
+                        level=logging.DEBUG if args.debug else logging.INFO)
+
+    main(args)
