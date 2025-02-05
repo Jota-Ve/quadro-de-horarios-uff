@@ -27,10 +27,10 @@
             "program": "main.py",
             "console": "integratedTerminal",
             "args": [
-                "-pesquisa", "teste",
+                // "-pesquisa", "teste",
                 "-curso", "Sistemas de Informação",
                 // "-seg", ""
-                "-ano_semestre", "2024", "1",
+                // "-ano_semestre", "2024", "1",
                 "-debug"
             ]
         }

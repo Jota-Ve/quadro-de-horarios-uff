@@ -1,12 +1,17 @@
 
 from datetime import datetime
+import logging
 import re
 from typing import Self
 import copy
 
+import aiohttp
 import requests
 import horario
 import bs4
+
+
+logger = logging.getLogger(__name__)
 
 
 class DisciplinaInfo:
@@ -17,7 +22,7 @@ class DisciplinaInfo:
     def __init__(self, soup: bs4.element.Tag) -> None:
         self._soup = soup
         self.pagina_inicial = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
-        print(self.pagina_inicial)
+        logger.info(self.pagina_inicial)
         match = self.RGX_TITULO.search(soup.h1.text.strip())
         self.turma = match.group(1)
         self.codigo = match.group(2)
@@ -28,18 +33,33 @@ class DisciplinaInfo:
             self.ultima_atualizacao: datetime|None = datetime.strptime(atualizacao, r'%d/%m/%Y às %H:%M h')
         else:
             self.ultima_atualizacao = None
+
         self.vagas = {}
         vagas = soup.find('h5', text='Vagas Alocadas').parent.parent
-        for curso in vagas.table.find_all('tr')[2:]:
-            self.vagas[curso.contents[1].text.split('- ')[1]] = {
-                'vagas_regular': int(curso.contents[3].text),
-                'vagas_vestibular': int(curso.contents[5].text),
-                'inscritos_regular': int(curso.contents[7].text),
-                'inscritos_vestibular': int(curso.contents[9].text),
-                'excedentes': int(curso.contents[11].text),
-                'candidatos': int(curso.contents[11].text)
-            }
+        if vagas.table:
+            for curso in vagas.table.find_all('tr')[2:]:
+                self.vagas[curso.contents[1].text.split('- ')[1]] = {
+                    'vagas_regular': int(curso.contents[3].text),
+                    'vagas_vestibular': int(curso.contents[5].text),
+                    'inscritos_regular': int(curso.contents[7].text),
+                    'inscritos_vestibular': int(curso.contents[9].text),
+                    'excedentes': int(curso.contents[11].text),
+                    'candidatos': int(curso.contents[11].text)
+                }
 
+        elif vagas.find(text='Nenhuma vaga alocada para esta turma!'):
+            logger.warning(f"{self} não possui vagas")
+
+        else:
+            raise RuntimeError(f"Não enconttrou vagas na turma {self.pagina_inicial}")
+
+
+    def __str__(self) -> str:
+        return f'{self.codigo} - {self.nome} ({self.turma}): {self.pagina_inicial}'
+
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(bs4.BeautifulSoup(requests.get({self.pagina_inicial!r}).text, features='lxml'))"
 
 
 class Disciplina:
@@ -71,6 +91,16 @@ class Disciplina:
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.__str__()})'
+
+
+    async def async_info(self, session: aiohttp.ClientSession) -> DisciplinaInfo|None:
+        #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
+        async with session.get(self.link_info) as response:
+            # text = await response.text()
+            soup = bs4.BeautifulSoup(await response.text(), features='lxml')
+            info_soup = soup.find('div', attrs={'class': "container-fluid mt-3"})
+            if info_soup is not None:
+                return DisciplinaInfo(info_soup)
 
 
     def info(self) -> DisciplinaInfo|None:

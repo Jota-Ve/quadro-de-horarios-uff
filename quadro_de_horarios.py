@@ -9,6 +9,8 @@ import requests
 
 from lista_disciplinas import ListaDisciplinas
 
+logger = logging.getLogger(__name__)
+
 
 class QuadroDeHorarios():
     """Classe para a busca de disciplinas utilizando os filtros disponíveis"""
@@ -68,7 +70,7 @@ class QuadroDeHorarios():
         Args:
             cod_ou_nome_dicsciplina: Código ou nome da disciplina a ser buscada. Defaults to "".
             espera: Espera entre requisições das páginas seguintes para evitar sobrecarregar o
-            servidor ou ser banido. Defaults to .3.
+            servidor ou ser banido. Defaults to 1.
 
         Yields:
             Classe que contém dados de todas as disciplinas encontradas
@@ -94,7 +96,7 @@ class QuadroDeHorarios():
         pagina = 1
         while resposta := _proxima_pagina():
             pagina +=1
-            logging.info(f"Baixou {pagina} páginas de resultados") #TODO: Informar qual a ultima pagina
+            logger.info(f"Baixou {pagina} páginas de resultados") #TODO: Informar qual a ultima pagina
             yield ListaDisciplinas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
 
