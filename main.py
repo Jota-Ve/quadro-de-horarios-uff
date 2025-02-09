@@ -101,7 +101,7 @@ async def salva_turmas(args: argparse.Namespace):
 
     hoje = datetime.date.today()
     await extracao(quadro,
-             [(ano, sem) for ano in range(2020, 2025) for sem in (1,2)
+             [(ano, sem) for ano in range(2011, 2025) for sem in (1,2)
               if not (ano==hoje.year and sem==hoje.month//6)])
 
 

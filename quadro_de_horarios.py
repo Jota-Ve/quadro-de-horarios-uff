@@ -133,15 +133,20 @@ class QuadroDeHorarios():
             logger.info(f"Baixou 1 página de resultados")
             resultados.append(ListaDisciplinas(soup_pagina))
 
-            # Continua requisitando e concatenando as disciplinas enquanto houver próxima página de resultados
-            pagina = 1
-            botao_ultima_pagina: bs4.Tag = soup_pagina.find_all('li', {'class': 'page-item'})[-1].a
+            # Se não tem os botões pras próximas páginas, retorna a atual
+            if not (soup_paginas := soup_pagina.find_all('li', {'class': 'page-item'})):
+                return resultados
+
+            # Identifica qual a última página de resultados
+            botao_ultima_pagina: bs4.Tag = soup_paginas[-1].a
             num_ultima_pagina = re.search(r'page=(\d+)', botao_ultima_pagina.attrs['href']).group(1)
             tasks = []
 
+            # Cria as tarefas de requisição assincrona de cada próxima página
             for pagina in range(2, int(num_ultima_pagina) + 1):
                 tasks.append(async_request(session, self.pagina_inicial, self._parametros | {'page': pagina}))
 
+            # Requisita de forma assíncrona cada uma e adiciona em resultados
             for pagina, soup_pagina in enumerate(await asyncio.gather(*tasks), start=2):
                 logger.info(f"Baixou {pagina}/{num_ultima_pagina} páginas de resultados")
                 resultados.append(ListaDisciplinas(soup_pagina))
