@@ -12,6 +12,10 @@ import quadro_de_horarios
 from lista_disciplinas import ListaDisciplinas
 
 
+logging.getLogger('selenium').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+
+
 async def salva_disciplinas_e_horarios(it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, nome_vagas: str|Path):
     cabecalho_disciplinas = not Path(nome_disciplinas).exists()
     cabecalho_horarios    = not Path(nome_horarios).exists()
@@ -84,16 +88,20 @@ async def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: It
     for ano, semestre in ano_semestre:
         quadro.seleciona_semestre(ano, semestre)
         logger.info(f"Pesquisando {ano} / {semestre}...")
-        lista_disc = quadro.pesquisa(pesquisa, espera=0)
+        lista_disc = await quadro.async_pesquisa(pesquisa, espera=0)
         await salva_disciplinas_e_horarios(lista_disc, nome_disciplinas, nome_horarios, nome_vagas)
 
 
 async def salva_turmas(args: argparse.Namespace):
     quadro = quadro_de_horarios.QuadroDeHorarios()
-    quadro.seleciona_vagas_para_curso(args.curso)
+    quadro.seleciona_localidade('Niterói')
+    # if args.curso:
+    #     quadro.seleciona_vagas_para_curso(args.curso)
+    quadro.seleciona_vagas_para_curso('sistemas de informação')
+
     hoje = datetime.date.today()
     await extracao(quadro,
-             [(ano, sem) for ano in range(2011, 2025) for sem in (1,2)
+             [(ano, sem) for ano in range(2020, 2025) for sem in (1,2)
               if not (ano==hoje.year and sem==hoje.month//6)])
 
 
