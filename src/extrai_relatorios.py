@@ -9,7 +9,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-def salva_reprovados(departamento: str, arquivo: str|Path='reprovados.csv', anos: Sequence[int]|None=None):
+def salva_reprovados(departamento: str, arquivo: str|Path='extracao/reprovados.csv', anos: Sequence[int]|None=None):
     logger.debug(f"Argumentos: {departamento=}, {arquivo=}, {anos=}")
     if anos is None: anos = range(2011, datetime.today().year)
 

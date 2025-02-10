@@ -11,7 +11,6 @@ import cli
 import quadro_de_horarios
 from lista_disciplinas import ListaDisciplinas
 
-
 logging.getLogger('selenium').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
@@ -77,9 +76,9 @@ async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, limite: a
 
 
 async def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: Iterable[tuple[int, Literal[1,2]]], pesquisa: str=''):
-    nome_disciplinas = Path('disciplinas.csv')
-    nome_horarios = Path('horarios.csv')
-    nome_vagas = Path('vagas.csv')
+    nome_disciplinas = Path('extracao/disciplinas.csv')
+    nome_horarios = Path('extracao/horarios.csv')
+    nome_vagas = Path('extracao/vagas.csv')
 
     nome_disciplinas.unlink(missing_ok=True)
     nome_horarios.unlink(missing_ok=True)
