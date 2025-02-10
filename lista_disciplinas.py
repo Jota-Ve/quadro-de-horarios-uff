@@ -1,6 +1,8 @@
 
+import asyncio
 from datetime import datetime
 import logging
+import random
 import re
 from typing import Self
 import copy
@@ -93,14 +95,19 @@ class Disciplina:
         return f'{self.__class__.__name__}({self.__str__()})'
 
 
-    async def async_info(self, session: aiohttp.ClientSession) -> DisciplinaInfo|None:
+    async def async_info(self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float]|None=(.05, .75)) -> DisciplinaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
-        async with session.get(self.link_info) as response:
-            # text = await response.text()
-            soup = bs4.BeautifulSoup(await response.text(), features='lxml')
-            info_soup = soup.find('div', attrs={'class': "container-fluid mt-3"})
-            if info_soup is not None:
-                return DisciplinaInfo(info_soup)
+        async with limite:
+            async with session.get(self.link_info) as response:
+                if espera_aleatoria:
+                    logger.debug(f"Esperando assíncronamente {(espera := random.uniform(*espera_aleatoria))} segundos")
+                    await asyncio.sleep(espera)
+
+                # text = await response.text()
+                soup = bs4.BeautifulSoup(await response.text(), features='lxml')
+                info_soup = soup.find('div', attrs={'class': "container-fluid mt-3"})
+                if info_soup is not None:
+                    return DisciplinaInfo(info_soup)
 
 
     def info(self) -> DisciplinaInfo|None:

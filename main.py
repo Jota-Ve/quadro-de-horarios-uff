@@ -16,7 +16,7 @@ logging.getLogger('selenium').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 
-async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, nome_vagas: str|Path):
+async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, limite: asyncio.Semaphore, it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, nome_vagas: str|Path):
     cabecalho_disciplinas = not Path(nome_disciplinas).exists()
     cabecalho_horarios    = not Path(nome_horarios).exists()
     cabecalho_vagas       = not Path(nome_vagas).exists()
@@ -32,8 +32,9 @@ async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, it_list_d
         if cabecalho_vagas:
             f_vagas.write('ANO_SEMESTRE;CODIGO;TURMA;NOME;VAGAS_REGULAR;VAGAS_VESTIBULAR;INSCRITOS_REGULAR;INSCRITOS_VESTIBULAR;EXCEDENTES;CANDIDATOS\n')
 
+
         for lista in it_list_disc:
-            tasks = [disc.async_info(session) for disc in lista.disciplinas]
+            tasks = [disc.async_info(session, limite) for disc in lista.disciplinas]
             info_list = await asyncio.gather(*tasks)
 
             for disciplina, info in zip(lista.disciplinas, info_list):
@@ -84,12 +85,13 @@ async def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: It
     nome_horarios.unlink(missing_ok=True)
     nome_vagas.unlink(missing_ok=True)
 
+    limite = asyncio.Semaphore(15)
     async with aiohttp.ClientSession() as session:
         for ano, semestre in ano_semestre:
             quadro.seleciona_semestre(ano, semestre)
             logger.info(f"Pesquisando {ano} / {semestre}...")
-            lista_disc = await quadro.async_pesquisa(session, pesquisa, espera=0)
-            await salva_disciplinas_e_horarios(session, lista_disc, nome_disciplinas, nome_horarios, nome_vagas)
+            lista_disc = await quadro.async_pesquisa(session, limite, pesquisa, espera=3)
+            await salva_disciplinas_e_horarios(session, limite, lista_disc, nome_disciplinas, nome_horarios, nome_vagas)
 
 
 async def salva_turmas(args: argparse.Namespace):
@@ -97,11 +99,11 @@ async def salva_turmas(args: argparse.Namespace):
     quadro.seleciona_localidade('Niterói')
     # if args.curso:
     #     quadro.seleciona_vagas_para_curso(args.curso)
-    quadro.seleciona_vagas_para_curso('sistemas de informação')
+    # quadro.seleciona_vagas_para_curso('sistemas de informação')
 
     hoje = datetime.date.today()
     await extracao(quadro,
-             [(ano, sem) for ano in range(2009, 2025) for sem in (1,2)
+             [(ano, sem) for ano in range(2015, 2025) for sem in (1,2)
               if not (ano==hoje.year and sem==hoje.month//6)])
 
 
