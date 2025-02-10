@@ -1,13 +1,18 @@
 
+import asyncio
 import logging
 import re
 import time
 from typing import Iterator, Literal
 
+import aiohttp
 import bs4
 import requests
 
+import requisicao
 from lista_disciplinas import ListaDisciplinas
+
+logger = logging.getLogger(__name__)
 
 
 class QuadroDeHorarios():
@@ -68,7 +73,7 @@ class QuadroDeHorarios():
         Args:
             cod_ou_nome_dicsciplina: Código ou nome da disciplina a ser buscada. Defaults to "".
             espera: Espera entre requisições das páginas seguintes para evitar sobrecarregar o
-            servidor ou ser banido. Defaults to .3.
+            servidor ou ser banido. Defaults to 1.
 
         Yields:
             Classe que contém dados de todas as disciplinas encontradas
@@ -94,8 +99,51 @@ class QuadroDeHorarios():
         pagina = 1
         while resposta := _proxima_pagina():
             pagina +=1
-            logging.info(f"Baixou {pagina} páginas de resultados") #TODO: Informar qual a ultima pagina
+            logger.info(f"Baixou {pagina} páginas de resultados") #TODO: Informar qual a ultima pagina
             yield ListaDisciplinas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
+
+
+    async def async_pesquisa(self, session: aiohttp.ClientSession, limite: asyncio.Semaphore,
+                             cod_ou_nome_disciplina: str="", espera: tuple[float, float] | None = (0.05, 0.75)) -> list[ListaDisciplinas]:
+        """Pesquisa código ou nome da turma informado, levando
+        em conta os possíveis filtros configurados anteriormente
+
+        Args:
+            cod_ou_nome_dicsciplina: Código ou nome da disciplina a ser buscada. Defaults to "".
+            espera: Espera entre requisições das páginas seguintes para evitar sobrecarregar o
+            servidor ou ser banido. Defaults to 1.
+
+        Yields:
+            Classe que contém dados de todas as disciplinas encontradas
+        """
+
+        self._parametros['utf8'] = '✓'
+        self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_disciplina
+        resultados: list[ListaDisciplinas] = []
+
+        soup_pagina = await requisicao.async_request(session, limite, self.pagina_inicial, params=self._parametros, espera_aleatoria=espera)
+        logger.info(f"Baixou 1 página de resultados")
+        resultados.append(ListaDisciplinas(soup_pagina))
+
+        # Se não tem os botões pras próximas páginas, retorna a atual
+        if not (soup_paginas := soup_pagina.find_all('li', {'class': 'page-item'})):
+            return resultados
+
+        # Identifica qual a última página de resultados
+        botao_ultima_pagina: bs4.Tag = soup_paginas[-1].a
+        num_ultima_pagina = re.search(r'page=(\d+)', botao_ultima_pagina.attrs['href']).group(1)
+        tasks = []
+
+        # Cria as tarefas de requisição assincrona de cada próxima página
+        for pagina in range(2, int(num_ultima_pagina) + 1):
+            tasks.append(requisicao.async_request(session, limite, self.pagina_inicial, self._parametros | {'page': pagina}, espera_aleatoria=espera))
+
+        # Requisita de forma assíncrona cada uma e adiciona em resultados
+        for pagina, soup_pagina in enumerate(await asyncio.gather(*tasks), start=2):
+            logger.info(f"Baixou {pagina}/{num_ultima_pagina} páginas de resultados")
+            resultados.append(ListaDisciplinas(soup_pagina))
+
+        return resultados
 
 
     def limpa_filtros(self):

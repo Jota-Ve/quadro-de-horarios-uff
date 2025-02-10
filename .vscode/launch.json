@@ -16,21 +16,21 @@
             "name": "Python Debugger: main",
             "type": "debugpy",
             "request": "launch",
-            "program": "main.py",
+            "program": "src/main.py",
             "console": "integratedTerminal",
-            "args": ["-debug"]
+            "args": ["-debug", "-curso", "Sistemas de Informação"]
         },
         {
             "name": "Python Debugger: main com args",
             "type": "debugpy",
             "request": "launch",
-            "program": "main.py",
+            "program": "src/main.py",
             "console": "integratedTerminal",
             "args": [
-                "-pesquisa", "teste",
+                // "-pesquisa", "teste",
                 "-curso", "Sistemas de Informação",
                 // "-seg", ""
-                "-ano_semestre", "2024", "1",
+                // "-ano_semestre", "2024", "1",
                 "-debug"
             ]
         }
