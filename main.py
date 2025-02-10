@@ -16,7 +16,7 @@ logging.getLogger('selenium').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 
-async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, limite: asyncio.Semaphore, it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, nome_vagas: str|Path):
+async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, limite: asyncio.Semaphore, it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, nome_vagas: str|Path, espera: tuple[float, float]=(0,.7)):
     cabecalho_disciplinas = not Path(nome_disciplinas).exists()
     cabecalho_horarios    = not Path(nome_horarios).exists()
     cabecalho_vagas       = not Path(nome_vagas).exists()
@@ -34,7 +34,7 @@ async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, limite: a
 
 
         for lista in it_list_disc:
-            tasks = [disc.async_info(session, limite) for disc in lista.disciplinas]
+            tasks = [disc.async_info(session, limite, espera_aleatoria=espera) for disc in lista.disciplinas]
             info_list = await asyncio.gather(*tasks)
 
             for disciplina, info in zip(lista.disciplinas, info_list):
@@ -85,13 +85,14 @@ async def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: It
     nome_horarios.unlink(missing_ok=True)
     nome_vagas.unlink(missing_ok=True)
 
-    limite = asyncio.Semaphore(15)
+    LIMITE = asyncio.Semaphore(15)
+    ESPERA = (0.05, 0.75)
     async with aiohttp.ClientSession() as session:
         for ano, semestre in ano_semestre:
             quadro.seleciona_semestre(ano, semestre)
             logger.info(f"Pesquisando {ano} / {semestre}...")
-            lista_disc = await quadro.async_pesquisa(session, limite, pesquisa, espera=3)
-            await salva_disciplinas_e_horarios(session, limite, lista_disc, nome_disciplinas, nome_horarios, nome_vagas)
+            lista_disc = await quadro.async_pesquisa(session, LIMITE, pesquisa, espera=ESPERA)
+            await salva_disciplinas_e_horarios(session, LIMITE, lista_disc, nome_disciplinas, nome_horarios, nome_vagas, espera=ESPERA)
 
 
 async def salva_turmas(args: argparse.Namespace):

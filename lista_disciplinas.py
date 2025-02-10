@@ -12,6 +12,8 @@ import requests
 import horario
 import bs4
 
+import requisicao
+
 
 logger = logging.getLogger(__name__)
 
@@ -97,17 +99,9 @@ class Disciplina:
 
     async def async_info(self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float]|None=(.05, .75)) -> DisciplinaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
-        async with limite:
-            async with session.get(self.link_info) as response:
-                if espera_aleatoria:
-                    logger.debug(f"Esperando assíncronamente {(espera := random.uniform(*espera_aleatoria))} segundos")
-                    await asyncio.sleep(espera)
-
-                # text = await response.text()
-                soup = bs4.BeautifulSoup(await response.text(), features='lxml')
-                info_soup = soup.find('div', attrs={'class': "container-fluid mt-3"})
-                if info_soup is not None:
-                    return DisciplinaInfo(info_soup)
+        soup = await requisicao.async_request(session, limite, self.link_info, espera_aleatoria=espera_aleatoria)
+        if isinstance(info_soup := soup.find('div', attrs={'class': "container-fluid mt-3"}), bs4.Tag):
+            return DisciplinaInfo(info_soup)
 
 
     def info(self) -> DisciplinaInfo|None:
