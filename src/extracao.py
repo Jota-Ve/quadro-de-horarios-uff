@@ -33,7 +33,7 @@ def salva_turmas(turmas: dict[int, tuple], nome: Path|str) -> None:
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('ID;TURMA;TIPO_DE_OFERTA;CARGA_HORARIA,ANO;SEMESTRE;DISCIPLINA;PROFESSOR\n')
         for id_, outras_colunas in sorted(turmas.items()):
-            f.write(f"{id_};" + ';'.join(map(str, outras_colunas)) + "\n")
+            f.write(f"{id_};" + ';'.join(map(lambda x: 'NULL' if x in {None, '-'} else str(x), outras_colunas)) + "\n")
 
 
 def salva_cursos(cursos: dict[int, str], nome: Path|str) -> None:
@@ -68,4 +68,4 @@ def salva_horarios(horarios: _ExtracaoHorarios, nome: Path|str) -> None:
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('DIA;INICIO;FIM\n')
         for dia, inicio, fim in sorted(horarios, key=lambda items: (ordena_semana(items[0]), items[1:])):
-            f.write(f"{dia.name};{inicio};{fim}\n")
+            f.write(f"{dia.name.capitalize()};{inicio};{fim}\n")
