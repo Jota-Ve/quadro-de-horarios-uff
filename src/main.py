@@ -8,6 +8,7 @@ from typing import Iterable, Literal
 import aiohttp
 
 import cli
+import extracao
 import quadro_de_horarios
 from lista_disciplinas import ListaDisciplinas
 
@@ -75,7 +76,7 @@ async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, limite: a
                         ]) + '\n')
 
 
-async def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: Iterable[tuple[int, Literal[1,2]]], pesquisa: str=''):
+async def extracao_async(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: Iterable[tuple[int, Literal[1,2]]], pesquisa: str=''):
     nome_disciplinas = Path('extracao/disciplinas.csv')
     nome_horarios = Path('extracao/horarios.csv')
     nome_vagas = Path('extracao/vagas.csv')
@@ -102,14 +103,53 @@ async def salva_turmas(args: argparse.Namespace):
     # quadro.seleciona_vagas_para_curso('sistemas de informação')
 
     hoje = datetime.date.today()
-    await extracao(quadro,
+    await extracao_async(quadro,
              [(ano, sem) for ano in range(2015, 2025) for sem in (1,2)
               if not (ano==hoje.year and sem==hoje.month//6)])
 
 
+def gera_semestres(inicio: tuple[int, int], fim: tuple[int, int]|None=None) -> Iterable[tuple[int, Literal[1, 2]]]:
+    """Gera semestres a partir de um ano e semestre inicial até um ano e semestre final"""
+    ano_inicial, sem_inicial = inicio
+    if fim:
+        ano_final, sem_final = fim
+    else:
+        ano_final, sem_final = datetime.date.today().year, datetime.date.today().month // 6
+
+    for ano in range(ano_inicial, ano_final + 1):
+        for sem in (1, 2):
+            if ano == ano_inicial and sem < sem_inicial:
+                continue
+            if ano == ano_final and sem > sem_final:
+                continue
+            yield (ano, sem)
+
+
+
+
 async def main(args: argparse.Namespace):
     logger.debug(f"Argumentos: {args}")
-    await salva_turmas(args)
+    quadro = quadro_de_horarios.QuadroDeHorarios()
+    quadro.seleciona_localidade('Niterói')
+    quadro.seleciona_vagas_para_curso('sistemas de informação')
+
+    LIMITE = asyncio.Semaphore(18)
+    ESPERA = (0.05, 0.15)
+    disciplinas: dict[str, str] = {}
+    turmas: dict[int, tuple] = {}
+
+    async with aiohttp.ClientSession() as session:
+        for ano, semestre in gera_semestres((2024, 1), (2025, 2)):
+            quadro.seleciona_semestre(ano, semestre)
+            logger.info(f"Pesquisando {ano} / {semestre}...")
+
+            lista_disc = await quadro.async_pesquisa(session, LIMITE, "", espera=ESPERA)
+            disciplinas.update(extracao.extrai_disciplinas(lista_disc))
+            turmas.update(extracao.extrai_turmas(lista_disc))
+
+    extracao.salva_discipllinas(disciplinas, 'extracao/disciplinas.csv')
+    extracao.salva_turmas(turmas, 'extracao/turmas.csv')
+
 
 
 if __name__ == '__main__':

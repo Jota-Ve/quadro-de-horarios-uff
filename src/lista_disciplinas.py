@@ -73,6 +73,7 @@ class Disciplina:
         self._soup = soup
         tags = self._soup.find_all('td')
         self.link_info = r'https://app.uff.br' + tags[0].contents[0]['href']
+        self._id = int(self.link_info.rsplit('/', 1)[1])
         self.ano_semestre = self._soup['data-anosemestre'].strip()
         self.codigo = tags[0].get_text().strip()
         self.nome = tags[1].get_text().strip()
