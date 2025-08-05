@@ -66,6 +66,12 @@ class QuadroDeHorarios():
         self._parametros['q[vagas_turma_curso_idcurso_eq]'] = cod_curso
 
 
+    def cursos_disponiveis(self) -> dict[int, str]:
+        """Retorna os cursos disponíveis para filtro"""
+        lista_cursos = self._soup.find(id="q_vagas_turma_curso_idcurso_eq")
+        return {int(option['value']): option.get_text().strip() for option in lista_cursos.find_all('option') if option['value']}
+
+
     def pesquisa(self, cod_ou_nome_dicsciplina: str="", espera: float=1) -> Iterator[ListaDisciplinas]:
         """Pesquisa código ou nome da turma informado, levando
         em conta os possíveis filtros configurados anteriormente

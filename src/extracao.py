@@ -13,7 +13,7 @@ def salva_discipllinas(disciplinas: dict[str, str], nome: Path|str):
     """Salva as disciplinas em um arquivo CSV"""
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('CODIGO;NOME\n')
-        for codigo, nome in disciplinas.items():
+        for codigo, nome in sorted(disciplinas.items()):
             f.write(f"{codigo};{nome}\n")
 
 
@@ -31,5 +31,13 @@ def salva_turmas(turmas: dict[int, tuple], nome: Path|str):
     """Salva as turmas em um arquivo CSV"""
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('ID;TURMA;TIPO_DE_OFERTA;CARGA_HORARIA,ANO;SEMESTRE;DISCIPLINA;PROFESSOR\n')
-        for id_, outras_colunas in turmas.items():
+        for id_, outras_colunas in sorted(turmas.items()):
             f.write(f"{id_};" + ';'.join(map(str, outras_colunas)) + "\n")
+
+
+def salva_cursos(cursos: dict[int, str], nome: Path|str):
+    """Salva os cursos em um arquivo CSV"""
+    with open(nome, 'w', encoding='utf-8') as f:
+        f.write('ID;NOME\n')
+        for id_, nome in sorted(cursos.items()):
+            f.write(f"{id_};{nome}\n")

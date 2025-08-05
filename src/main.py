@@ -137,6 +137,8 @@ async def main(args: argparse.Namespace):
     ESPERA = (0.05, 0.15)
     disciplinas: dict[str, str] = {}
     turmas: dict[int, tuple] = {}
+    cursos = quadro.cursos_disponiveis()
+
 
     async with aiohttp.ClientSession() as session:
         for ano, semestre in gera_semestres((2024, 1), (2025, 2)):
@@ -149,6 +151,7 @@ async def main(args: argparse.Namespace):
 
     extracao.salva_discipllinas(disciplinas, 'extracao/disciplinas.csv')
     extracao.salva_turmas(turmas, 'extracao/turmas.csv')
+    extracao.salva_cursos(cursos, 'extracao/cursos.csv')
 
 
 
