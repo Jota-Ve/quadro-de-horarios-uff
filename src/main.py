@@ -8,6 +8,7 @@ from typing import Iterable, Literal
 import aiohttp
 
 import cli
+import curso
 import extracao
 import quadro_de_horarios
 from lista_disciplinas import ListaDisciplinas
@@ -133,12 +134,13 @@ async def main(args: argparse.Namespace):
     quadro.seleciona_localidade('Niterói')
     # quadro.seleciona_vagas_para_curso('sistemas de informação')
 
-    LIMITE = asyncio.Semaphore(20)
-    ESPERA = (0.05, 0.15)
+    LIMITE = asyncio.Semaphore(30)
+    ESPERA = (0.03, 0.5)
+    cursos: set[curso.Curso] = set()
     disciplinas: dict[str, str] = {}
     turmas: dict[int, tuple] = {}
-    cursos: dict[int, str] = quadro.cursos_disponiveis()
     horarios: set[tuple] = set()
+    vagas: dict[int, dict[curso.Curso, dict[str, int]]] = {}
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -152,12 +154,29 @@ async def main(args: argparse.Namespace):
                 turmas.update(extracao.extrai_turmas(lista_disc))
                 horarios.update(extracao.extrai_horarios(lista_disc))
 
+                            # ...existing code...
+                for lista in lista_disc:
+                    tasks = [disc.async_info(session, LIMITE, espera_aleatoria=ESPERA) for disc in lista.disciplinas]
+                    for coro in asyncio.as_completed(tasks):
+                        info = await coro
+                        # Aqui você pode processar cada 'info' assim que ela estiver pronta
+                        # ignora turmas q nao possuem informações, como as de yoga de 2009/2
+                        if info is None: continue
+                        # ignora turmas sem vagas alocadas, como: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
+                        if not info.vagas: continue
+
+                        cursos.update(info.vagas.keys())
+                        vagas[info.id_turma] = info.vagas
+                # break
+                # ...existing code...
+
         logging.info("Extração concluída.")
     finally:
         extracao.salva_discipllinas(disciplinas, 'extracao/disciplinas.csv')
         extracao.salva_turmas(turmas, 'extracao/turmas.csv')
         extracao.salva_cursos(cursos, 'extracao/cursos.csv')
         extracao.salva_horarios(horarios, 'extracao/horarios.csv')
+        extracao.salva_vagas(vagas, 'extracao/vagas.csv')
 
 
 

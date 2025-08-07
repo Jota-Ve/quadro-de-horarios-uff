@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import Iterable
 
+import curso
 import horario
 from lista_disciplinas import ListaDisciplinas
 
@@ -36,12 +37,23 @@ def salva_turmas(turmas: dict[int, tuple], nome: Path|str) -> None:
             f.write(f"{id_};" + ';'.join(map(lambda x: 'NULL' if x in {None, '-'} else str(x), outras_colunas)) + "\n")
 
 
-def salva_cursos(cursos: dict[int, str], nome: Path|str) -> None:
+def salva_cursos(cursos: set[curso.Curso], nome: Path|str) -> None:
     """Salva os cursos em um arquivo CSV"""
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('ID;NOME\n')
-        for id_, nome in sorted(cursos.items()):
-            f.write(f"{id_};{nome}\n")
+        for _curso in sorted(cursos, key=lambda x: x.id):
+            f.write(f"{_curso.id};{_curso.nome}\n")
+
+
+def salva_vagas(vagas: dict[int, dict[curso.Curso, dict[str, int]]], nome: Path|str) -> None:
+    """Salva as vagas em um arquivo CSV"""
+    with open(nome, 'w', encoding='utf-8') as f:
+        f.write('TURMA_ID;CURSO_ID;VAGAS_REGULAR;VAGAS_VESTIBULAR;INSCRITOS_REGULAR;INSCRITOS_VESTIBULAR;EXCEDENTES;CANDIDATOS\n')
+        for turma_id, cursos in sorted(vagas.items()):
+            for _curso, info in cursos.items():
+                f.write(f"{turma_id};{_curso.id};{info.get('vagas_regular', 0)};{info.get('vagas_vestibular', 0)};"
+                        f"{info.get('inscritos_regular', 0)};{info.get('inscritos_vestibular', 0)};"
+                        f"{info.get('excedentes', 0)};{info.get('candidatos', 0)}\n")
 
 
 _ExtracaoHorarios = set[tuple[horario.DiaDaSemana, str, str]]

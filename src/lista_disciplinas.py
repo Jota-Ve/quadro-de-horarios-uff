@@ -9,6 +9,7 @@ import copy
 
 import aiohttp
 import requests
+import curso
 import horario
 import bs4
 
@@ -17,7 +18,7 @@ import requisicao
 
 logger = logging.getLogger(__name__)
 
-
+#TODO: Mudar o nome das classes pois elas representam Turmas individuais (TCC0030 - A1 em 2025.1), e não Disciplinas (TCC0030)
 class DisciplinaInfo:
     #TODO: Suportar DisciplinaInfo vazia, sem informações, e ser == False nesse caso
     RGX_TITULO = re.compile(r'Turma ([\w\d]+) de ([\w\d]+) - (.*)', re.IGNORECASE)
@@ -27,6 +28,8 @@ class DisciplinaInfo:
         self._soup = soup
         self.pagina_inicial = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
         logger.info(self.pagina_inicial)
+
+        self._id_turma = int(self.pagina_inicial.rsplit('/', 1)[1])
         match = self.RGX_TITULO.search(soup.h1.text.strip())
         self.turma = match.group(1)
         self.codigo = match.group(2)
@@ -38,17 +41,17 @@ class DisciplinaInfo:
         else:
             self.ultima_atualizacao = None
 
-        self.vagas = {}
+        self.vagas: dict[curso.Curso, dict] = {}
         vagas = soup.find('h5', text='Vagas Alocadas').parent.parent
         if vagas.table:
-            for curso in vagas.table.find_all('tr')[2:]:
-                self.vagas[curso.contents[1].text.split('- ')[1]] = {
-                    'vagas_regular': int(curso.contents[3].text),
-                    'vagas_vestibular': int(curso.contents[5].text),
-                    'inscritos_regular': int(curso.contents[7].text),
-                    'inscritos_vestibular': int(curso.contents[9].text),
-                    'excedentes': int(curso.contents[11].text),
-                    'candidatos': int(curso.contents[11].text)
+            for curso_tag in vagas.table.find_all('tr')[2:]:
+                self.vagas[curso.Curso.from_string(curso_tag.contents[1].text)] = {
+                    'vagas_regular': int(curso_tag.contents[3].text),
+                    'vagas_vestibular': int(curso_tag.contents[5].text),
+                    'inscritos_regular': int(curso_tag.contents[7].text),
+                    'inscritos_vestibular': int(curso_tag.contents[9].text),
+                    'excedentes': int(curso_tag.contents[11].text),
+                    'candidatos': int(curso_tag.contents[13].text)
                 }
 
         elif vagas.find(text='Nenhuma vaga alocada para esta turma!'):
@@ -64,6 +67,12 @@ class DisciplinaInfo:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(bs4.BeautifulSoup(requests.get({self.pagina_inicial!r}).text, features='lxml'))"
+
+
+    @property
+    def id_turma(self) -> int:
+        return self._id_turma
+
 
 
 class Disciplina:
