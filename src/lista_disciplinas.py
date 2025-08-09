@@ -26,23 +26,24 @@ class DisciplinaInfo:
 
     def __init__(self, soup: bs4.element.Tag) -> None:
         self._soup = soup
-        self.pagina_inicial = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
+        self.pagina_inicial: str = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
         logger.info(self.pagina_inicial)
 
-        self._id_turma = int(self.pagina_inicial.rsplit('/', 1)[1])
+        self._id_turma    : int = int(self.pagina_inicial.rsplit('/', 1)[1])
         match = self.RGX_TITULO.search(soup.h1.text.strip())
-        self.turma = match.group(1)
-        self.codigo = match.group(2)
-        self.nome = match.group(3)
-        self.ano_semestre = ''.join(self.RGX_SEMESTRE.findall(soup.find('dt', text='Ano/Semestre').find_next('dd').text))
-        self.ferias = soup.find('dt', text='Curso de Férias').find_next('dd').text == 'Sim'
+        self.turma        : str = match.group(1)
+        self.codigo       : str = match.group(2)
+        self.nome         : str = match.group(3)
+        self.ano_semestre : str = ''.join(self.RGX_SEMESTRE.findall(soup.find('dt', text='Ano/Semestre').find_next('dd').text))
+        self.ferias       : bool = (soup.find('dt', text='Curso de Férias').find_next('dd').text == 'Sim')
+
         if (atualizacao := soup.find('dt', text='Última Atualização').find_next('dd').text).strip() != '-':
             self.ultima_atualizacao: datetime|None = datetime.strptime(atualizacao, r'%d/%m/%Y às %H:%M h')
         else:
             self.ultima_atualizacao = None
 
         self.vagas: dict[curso.Curso, dict] = {}
-        vagas = soup.find('h5', text='Vagas Alocadas').parent.parent
+        vagas: bs4.Tag = soup.find('h5', text='Vagas Alocadas').parent.parent
         if vagas.table:
             for curso_tag in vagas.table.find_all('tr')[2:]:
                 self.vagas[curso.Curso.from_string(curso_tag.contents[1].text)] = {
@@ -81,14 +82,14 @@ class Disciplina:
     def __init__(self, soup: bs4.BeautifulSoup) -> None:
         self._soup = soup
         tags = self._soup.find_all('td')
-        self.link_info = r'https://app.uff.br' + tags[0].contents[0]['href']
-        self._id = int(self.link_info.rsplit('/', 1)[1])
-        self.ano_semestre = self._soup['data-anosemestre'].strip()
-        self.codigo = tags[0].get_text().strip()
-        self.nome = tags[1].get_text().strip()
-        self.turma = tags[2].get_text().strip()
-        self.modulo = tags[3].get_text().strip()
-        self.tipo_de_oferta = tags[4].get_text().strip()
+        self.link_info      : str = r'https://app.uff.br' + tags[0].contents[0]['href']
+        self._id            : int = int(self.link_info.rsplit('/', 1)[1])
+        self.ano_semestre   : str = self._soup['data-anosemestre'].strip()
+        self.codigo         : str = tags[0].get_text().strip()
+        self.nome           : str = tags[1].get_text().strip()
+        self.turma          : str = tags[2].get_text().strip()
+        self.modulo         : str = tags[3].get_text().strip()
+        self.tipo_de_oferta : str = tags[4].get_text().strip()
 
         self.horario: dict[horario.DiaDaSemana, list[horario.Horario]] = {}
         RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
@@ -117,7 +118,7 @@ class Disciplina:
     def info(self) -> DisciplinaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
         soup = bs4.BeautifulSoup(self._SESSION.get(self.link_info).text, features='lxml')
-        info_soup = soup.find('div', attrs={'class': "container-fluid mt-3"})
+        info_soup: bs4.Tag|None = soup.find('div', attrs={'class': "container-fluid mt-3"})
         if info_soup is not None:
             return DisciplinaInfo(info_soup)
 
@@ -126,7 +127,7 @@ class Disciplina:
 class ListaDisciplinas:
 
     def __init__(self, soup: bs4.BeautifulSoup):
-        self._soup = soup if soup.get('id') == "tabela-turmas" else soup.find(id="tabela-turmas")
+        self._soup: bs4.Tag|None = soup if soup.get('id') == "tabela-turmas" else soup.find(id="tabela-turmas")
         if self._soup is not None:
             self.disciplinas = [Disciplina(tag) for tag in self._soup.tbody.find_all('tr')]
         else:
@@ -161,8 +162,8 @@ class ListaDisciplinas:
         return [disc.nome for disc in self.disciplinas]
 
 
-    def selecionar_horarios(self, dia_horario: dict[horario.DiaDaSemana, list[horario.Horario|str]]):
-        disciplinas = []
+    def selecionar_horarios(self, dia_horario: dict[horario.DiaDaSemana, list[horario.Horario|str]]) -> list[Disciplina]:
+        disciplinas: list[Disciplina] = []
         for disc in self.disciplinas:
             turma_com_horario_valido = True
 
