@@ -108,6 +108,11 @@ class Disciplina:
         return f'{self.__class__.__name__}({self.__str__()})'
 
 
+    @property
+    def id(self) -> int:
+        return self._id
+
+
     async def async_info(self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float]|None=(.05, .75)) -> DisciplinaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
         soup = await requisicao.async_request(session, limite, self.link_info, espera_aleatoria=espera_aleatoria)

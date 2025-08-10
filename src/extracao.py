@@ -56,28 +56,46 @@ def salva_vagas(vagas: dict[int, dict[curso.Curso, dict[str, int]]], nome: Path|
                         f"{info.get('excedentes', 0)};{info.get('candidatos', 0)}\n")
 
 
-_ExtracaoHorarios = set[tuple[horario.DiaDaSemana, str, str]]
-def extrai_horarios(lista_disc: Iterable[ListaDisciplinas]) -> _ExtracaoHorarios:
-    """Extrai horários de uma lista de ListaDisciplinas"""
-    horarios: _ExtracaoHorarios = set()
+_ExtracaoHorarios = dict[tuple[horario.DiaDaSemana, str, str], set[int]]
+def extrai_horarios_e_turmas(lista_disc: Iterable[ListaDisciplinas]) -> _ExtracaoHorarios:
+    """Extrai horários de uma lista de ListaDisciplinas e os IDs das turmas que os ocupam.
+
+    Retorna um dicionário onde as chaves são tuplas (dia_da_semana, hora_inicio, hora_fim)
+    e os valores são conjuntos de IDs das turmas que ocupam aquele horário.
+    """
+    horarios: _ExtracaoHorarios = dict()
     for lista in lista_disc:
         for disc in lista.disciplinas:
             for dia, horarios_no_dia in disc.horario.items():
-                horarios.update((dia, horario.inicio, horario.fim) for horario in horarios_no_dia)
+                for disc_hr in horarios_no_dia:
+                    if (dia, disc_hr.inicio, disc_hr.fim) not in horarios:
+                        horarios[(dia, disc_hr.inicio, disc_hr.fim)] = set()
+                    horarios[(dia, disc_hr.inicio, disc_hr.fim)].add(disc.id)
 
     return horarios
 
-def salva_horarios(horarios: _ExtracaoHorarios, nome: Path|str) -> None:
-    """Salva os horários em um arquivo CSV"""
-    def ordena_semana(dia: horario.DiaDaSemana) -> int:
-        return {horario.DiaDaSemana.SEGUNDA: 0,
-                horario.DiaDaSemana.TERCA: 1,
-                horario.DiaDaSemana.QUARTA: 2,
-                horario.DiaDaSemana.QUINTA: 3,
-                horario.DiaDaSemana.SEXTA: 4,
-                horario.DiaDaSemana.SABADO: 5}[dia]
+def salva_horarios(horarios: _ExtracaoHorarios, nome_horarios: Path|str, nome_horarios_turmas: Path|str) -> None:
+    """Salva os horários e as turmas que os ocupam em arquivos CSV.
+    Args:
+        horarios: Dicionário retornado por `extrai_horarios_e_turmas`
+        nome_horarios: Nome do arquivo CSV para salvar os horários
+        nome_horarios_turmas: Nome do arquivo CSV para salvar as turmas que ocupam os horários
+    """
 
-    with open(nome, 'w', encoding='utf-8') as f:
-        f.write('DIA;INICIO;FIM\n')
-        for dia, inicio, fim in sorted(horarios, key=lambda items: (ordena_semana(items[0]), items[1:])):
-            f.write(f"{dia.name.capitalize()};{inicio};{fim}\n")
+    def _salva_horarios(horarios: _ExtracaoHorarios, nome: Path|str) -> None:
+        """Salva os horários em um arquivo CSV"""
+        with open(nome, 'w', encoding='utf-8') as f:
+            f.write('ID;DIA;INICIO;FIM\n')
+            for _id, (dia, inicio, fim) in enumerate(horarios, start=1):
+                f.write(f"{_id};{dia.name.capitalize()};{inicio};{fim}\n")
+
+    def _salva_horarios_turmas(horarios: _ExtracaoHorarios, nome: Path|str) -> None:
+        """Salva os horários e as turmas que os ocupam em um arquivo CSV"""
+        with open(nome, 'w', encoding='utf-8') as f:
+            f.write('TURMA_ID;HORARIO_ID\n')
+            for horario_id, turmas in enumerate(horarios.values(), start=1):
+                for turma_id in turmas:
+                    f.write(f"{turma_id};{horario_id}\n")
+
+    _salva_horarios(horarios, nome_horarios)
+    _salva_horarios_turmas(horarios, nome_horarios_turmas)

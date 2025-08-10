@@ -136,10 +136,10 @@ async def main(args: argparse.Namespace):
 
     LIMITE = asyncio.Semaphore(30)
     ESPERA = (0.03, 0.5)
-    cursos: set[curso.Curso] = set()
     disciplinas: dict[str, str] = {}
     turmas: dict[int, tuple] = {}
-    horarios: set[tuple] = set()
+    horarios: extracao._ExtracaoHorarios = {}
+    cursos: set[curso.Curso] = set()
     vagas: dict[int, dict[curso.Curso, dict[str, int]]] = {}
 
     try:
@@ -152,7 +152,7 @@ async def main(args: argparse.Namespace):
 
                 disciplinas.update(extracao.extrai_disciplinas(lista_disc))
                 turmas.update(extracao.extrai_turmas(lista_disc))
-                horarios.update(extracao.extrai_horarios(lista_disc))
+                horarios.update(extracao.extrai_horarios_e_turmas(lista_disc))
 
                             # ...existing code...
                 for lista in lista_disc:
@@ -175,7 +175,7 @@ async def main(args: argparse.Namespace):
         extracao.salva_discipllinas(disciplinas, 'extracao/disciplinas.csv')
         extracao.salva_turmas(turmas, 'extracao/turmas.csv')
         extracao.salva_cursos(cursos, 'extracao/cursos.csv')
-        extracao.salva_horarios(horarios, 'extracao/horarios.csv')
+        extracao.salva_horarios(horarios, 'extracao/horarios.csv', 'extracao/horarios_turmas.csv')
         extracao.salva_vagas(vagas, 'extracao/vagas.csv')
 
 
