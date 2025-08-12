@@ -134,7 +134,7 @@ async def main(args: argparse.Namespace):
     quadro.seleciona_localidade('Niterói')
     # quadro.seleciona_vagas_para_curso('sistemas de informação')
 
-    LIMITE = asyncio.Semaphore(30)
+    LIMITE = asyncio.Semaphore(25)
     ESPERA = (0.03, 0.5)
     disciplinas: dict[str, str] = {}
     turmas: dict[int, tuple] = {}
@@ -152,9 +152,10 @@ async def main(args: argparse.Namespace):
 
                 disciplinas.update(extracao.extrai_disciplinas(lista_disc))
                 turmas.update(extracao.extrai_turmas(lista_disc))
-                horarios.update(extracao.extrai_horarios_e_turmas(lista_disc))
+                for horario, turmas_ in extracao.extrai_horarios_e_turmas(lista_disc).items():
+                    horarios.setdefault(horario, set()).update(turmas_)
 
-                            # ...existing code...
+                # Processa as disciplinas e extrai informações de vagas e horários de forma assíncrona
                 for lista in lista_disc:
                     tasks = [disc.async_info(session, LIMITE, espera_aleatoria=ESPERA) for disc in lista.disciplinas]
                     for coro in asyncio.as_completed(tasks):

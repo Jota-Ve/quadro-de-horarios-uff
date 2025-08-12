@@ -32,7 +32,7 @@ def extrai_turmas(lista_disc: Iterable[ListaDisciplinas]):
 def salva_turmas(turmas: dict[int, tuple], nome: Path|str) -> None:
     """Salva as turmas em um arquivo CSV"""
     with open(nome, 'w', encoding='utf-8') as f:
-        f.write('ID;TURMA;TIPO_DE_OFERTA;CARGA_HORARIA,ANO;SEMESTRE;DISCIPLINA;PROFESSOR\n')
+        f.write('ID;TURMA;TIPO_DE_OFERTA;CARGA_HORARIA;ANO;SEMESTRE;DISCIPLINA;PROFESSOR\n')
         for id_, outras_colunas in sorted(turmas.items()):
             f.write(f"{id_};" + ';'.join(map(lambda x: 'NULL' if x in {None, '-'} else str(x), outras_colunas)) + "\n")
 
