@@ -5,7 +5,7 @@ import random
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Literal, Sequence
 
 import curso
 import horario
@@ -40,7 +40,6 @@ def salva_reprovados(rel: relatorio.Relatorios, departamentos: Iterable[str]='',
             logger.info(f"Baixou reprovados de {ano}/{semestre} - {departamento_atual}")
 
 
-#region Extrai e Salva Disciplinas
 def extrai_disciplinas(listas_turmas: Iterable[ListaTurmas]) -> dict[str, str]:
     """Extrai código e nome das disciplinas.
 
@@ -70,11 +69,24 @@ def salva_disciplinas(disciplinas: dict[str, str], nome: Path|str) -> None:
         f.write('CODIGO;NOME\n')
         for codigo, nome in sorted(disciplinas.items()):
             f.write(f"{codigo};{nome}\n")
-#endregion
 
+
+type TurmaRow = tuple[str, str, int|None, int, int, str, None]
 def extrai_turmas(lista_disc: Iterable[ListaTurmas]):
-    """Extrai turmas de uma lista de ListaDisciplinas"""
-    turmas: dict[int, tuple] = {}
+    """Extrai informações básicas das turmas de uma lista de ListaTurmas.
+
+    Parameters
+    ----------
+    lista_disc : Iterable[ListaTurmas]
+        Listas de turmas das quais extrair as informações.
+
+    Returns
+    -------
+    dict[int, TurmaRow]
+        Dicionário onde as chaves são os IDs das turmas e os valores são tuplas com as seguintes informações:
+        (nome, tipo_de_oferta, modulo, ano, semestre, codigo_disciplina, professor).
+    """
+    turmas: dict[int, TurmaRow] = {}
     for lista in lista_disc:
         for disc in lista.turmas:
             ano, semestre = map(int, [disc.ano_semestre[:4], disc.ano_semestre[4]])
@@ -82,24 +94,52 @@ def extrai_turmas(lista_disc: Iterable[ListaTurmas]):
 
     return turmas
 
-def salva_turmas(turmas: dict[int, tuple], nome: Path|str) -> None:
-    """Salva as turmas em um arquivo CSV"""
+def salva_turmas(turmas: dict[int, TurmaRow], nome: Path|str) -> None:
+    """Salva as turmas em um arquivo CSV.
+        Parameters
+        ----------
+        turmas : dict[int, TurmaRow]
+            Dicionário onde as chaves são os IDs das turmas e os valores são tuplas com as seguintes informações:
+            (nome, tipo_de_oferta, modulo, ano, semestre, codigo_disciplina, professor).
+        nome : Path | str
+            Nome do arquivo CSV onde as turmas serão salvas.
+    """
+    def _sanitiza_valores_invalidos(x) -> Literal['NULL']|str:
+        return 'NULL' if x in {None, '-'} else str(x)
+
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('ID;TURMA;TIPO_DE_OFERTA;CARGA_HORARIA;ANO;SEMESTRE;DISCIPLINA;PROFESSOR\n')
         for id_, outras_colunas in sorted(turmas.items()):
-            f.write(f"{id_};" + ';'.join(map(lambda x: 'NULL' if x in {None, '-'} else str(x), outras_colunas)) + "\n")
+            f.write(f"{id_};" + ';'.join(map(_sanitiza_valores_invalidos, outras_colunas)) + "\n")
 
 
-def salva_cursos(cursos: set[curso.Curso], nome: Path|str) -> None:
-    """Salva os cursos em um arquivo CSV"""
+def salva_cursos(cursos: Iterable[curso.Curso], nome: Path|str) -> None:
+    """Salva os cursos em um arquivo CSV.
+    Parameters
+    ----------
+    cursos : Iterable[curso.Curso]
+        Cursos a serem salvos.
+    nome : Path | str
+        Nome do arquivo CSV onde os cursos serão salvos.
+    """
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('ID;NOME\n')
         for _curso in sorted(cursos, key=lambda x: x.id):
             f.write(f"{_curso.id};{_curso.nome}\n")
 
 
-def salva_vagas(vagas: dict[int, dict[curso.Curso, dict[str, int]]], nome: Path|str) -> None:
-    """Salva as vagas em um arquivo CSV"""
+type VagasRow = dict[curso.Curso, dict[str, int]]
+def salva_vagas(vagas: dict[int, VagasRow], nome: Path|str) -> None:
+    """ Salva as vagas em um arquivo CSV.
+    Parameters
+    ----------
+    vagas : dict[int, dict[curso.Curso, dict[str, int]]]
+        Dicionário onde as chaves são os IDs das turmas e os valores são dicionários
+        onde as chaves são os cursos e os valores são dicionários com as seguintes informações:
+        'vagas_regular', 'vagas_vestibular', 'inscritos_regular', 'inscritos_vestibular', 'excedentes', 'candidatos'.
+    nome : Path | str
+        Nome do arquivo CSV onde as vagas serão salvas.
+    """
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('TURMA_ID;CURSO_ID;VAGAS_REGULAR;VAGAS_VESTIBULAR;INSCRITOS_REGULAR;INSCRITOS_VESTIBULAR;EXCEDENTES;CANDIDATOS\n')
         for turma_id, cursos in sorted(vagas.items()):
@@ -110,14 +150,14 @@ def salva_vagas(vagas: dict[int, dict[curso.Curso, dict[str, int]]], nome: Path|
 
 
 _ExtracaoHorarios = dict[tuple[horario.DiaDaSemana, str, str], set[int]]
-def extrai_horarios_e_turmas(lista_disc: Iterable[ListaTurmas]) -> _ExtracaoHorarios:
-    """Extrai horários de uma lista de ListaDisciplinas e os IDs das turmas que os ocupam.
+def extrai_horarios_e_turmas(iter_listas_turmas: Iterable[ListaTurmas]) -> _ExtracaoHorarios:
+    """Extrai horários de uma lista de ListaTurmas e os IDs das turmas que os ocupam.
 
     Retorna um dicionário onde as chaves são tuplas (dia_da_semana, hora_inicio, hora_fim)
     e os valores são conjuntos de IDs das turmas que ocupam aquele horário.
     """
     horarios: _ExtracaoHorarios = dict()
-    for lista in lista_disc:
+    for lista in iter_listas_turmas:
         for disc in lista.turmas:
             for dia, horarios_no_dia in disc.horario.items():
                 for disc_hr in horarios_no_dia:
