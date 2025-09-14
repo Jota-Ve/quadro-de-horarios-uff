@@ -95,8 +95,10 @@ class Turma:
         self._codigo_disciplina : str = tags[0].get_text().strip()
         self._nome_disciplina   : str = tags[1].get_text().strip()
         self._nome              : str = tags[2].get_text().strip()
-        self._modulo            : str = tags[3].get_text().strip()
         self._tipo_de_oferta    : str = tags[4].get_text().strip()
+
+        _tem_modulo = (_mod := tags[3].get_text().strip()).isdecimal()
+        self._modulo = int(_mod) if _tem_modulo else None
 
         self._horario: dict[horario.DiaDaSemana, list[horario.Horario]] = {}
         RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
@@ -120,7 +122,7 @@ class Turma:
     @property
     def nome(self) -> str: return self._nome
     @property
-    def modulo(self) -> str: return self._modulo
+    def modulo(self) -> int|None: return self._modulo
     @property
     def tipo_de_oferta(self) -> str: return self._tipo_de_oferta
     @property
