@@ -18,6 +18,10 @@ import requisicao
 logger = logging.getLogger(__name__)
 
 class TurmaInfo:
+    """Representa informações detalhadas de uma turma de disciplina da UFF extraída de uma página HTML.
+    Permite acessar informações como código, nome, semestre, vagas e última atualização.
+    """
+
     #TODO: Suportar DisciplinaInfo vazia, sem informações, e ser == False nesse caso
     RGX_TITULO = re.compile(r'Turma ([\w\d]+) de ([\w\d]+) - (.*)', re.IGNORECASE)
     RGX_SEMESTRE = re.compile(r'\d+')
@@ -60,21 +64,18 @@ class TurmaInfo:
             raise RuntimeError(f"Não encontrou vagas na turma {self._url}")
 
 
+    @property
+    def id(self) -> int: return self._id
+    @property
+    def url(self) -> str: return self._url
+
+
     def __str__(self) -> str:
         return f'{self.codigo} - {self.nome} ({self.turma}): {self._url}'
 
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(bs4.BeautifulSoup(requests.get({self._url!r}).text, features='lxml'))"
-
-
-    @property
-    def id(self) -> int:
-        return self._id
-
-    @property
-    def url(self) -> str:
-        return self._url
 
 
 
@@ -154,6 +155,9 @@ class Turma:
 
 
 class ListaTurmas:
+    """Representa uma lista de turmas de disciplinas da UFF extraídas de uma tabela HTML.
+    Permite acessar as turmas, somar listas e filtrar por horários.
+    """
 
     def __init__(self, soup: bs4.BeautifulSoup):
         self._soup: bs4.Tag|None = soup if soup.get('id') == "tabela-turmas" else soup.find(id="tabela-turmas")

@@ -81,7 +81,7 @@ async def main(args: argparse.Namespace):
 
         logging.info("Extração concluída.")
     finally:
-        extracao.salva_discipllinas(disciplinas, 'extracao/disciplinas.csv')
+        extracao.salva_disciplinas(disciplinas, 'extracao/disciplinas.csv')
         extracao.salva_turmas(turmas, 'extracao/turmas.csv')
         extracao.salva_cursos(cursos, 'extracao/cursos.csv')
         extracao.salva_horarios(horarios, 'extracao/horarios.csv', 'extracao/horarios_turmas.csv')
