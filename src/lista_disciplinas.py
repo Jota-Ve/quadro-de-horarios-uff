@@ -2,7 +2,6 @@
 import asyncio
 from datetime import datetime
 import logging
-import random
 import re
 from typing import Self
 import copy
@@ -26,10 +25,10 @@ class DisciplinaInfo:
 
     def __init__(self, soup: bs4.element.Tag) -> None:
         self._soup = soup
-        self.pagina_inicial: str = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
-        logger.info(self.pagina_inicial)
+        self._url: str = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
+        logger.debug(self._url)
 
-        self._id_turma    : int = int(self.pagina_inicial.rsplit('/', 1)[1])
+        self._id_turma    : int = int(self._url.rsplit('/', 1)[1])
         match = self.RGX_TITULO.search(soup.h1.text.strip())
         self.turma        : str = match.group(1)
         self.codigo       : str = match.group(2)
@@ -59,20 +58,24 @@ class DisciplinaInfo:
             logger.warning(f"{self} não possui vagas")
 
         else:
-            raise RuntimeError(f"Não enconttrou vagas na turma {self.pagina_inicial}")
+            raise RuntimeError(f"Não encontrou vagas na turma {self._url}")
 
 
     def __str__(self) -> str:
-        return f'{self.codigo} - {self.nome} ({self.turma}): {self.pagina_inicial}'
+        return f'{self.codigo} - {self.nome} ({self.turma}): {self._url}'
 
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(bs4.BeautifulSoup(requests.get({self.pagina_inicial!r}).text, features='lxml'))"
+        return f"{self.__class__.__name__}(bs4.BeautifulSoup(requests.get({self._url!r}).text, features='lxml'))"
 
 
     @property
     def id_turma(self) -> int:
         return self._id_turma
+
+    @property
+    def url(self) -> str:
+        return self._url
 
 
 
@@ -82,8 +85,8 @@ class Disciplina:
     def __init__(self, soup: bs4.BeautifulSoup) -> None:
         self._soup = soup
         tags = self._soup.find_all('td')
-        self.link_info      : str = r'https://app.uff.br' + tags[0].contents[0]['href']
-        self._id            : int = int(self.link_info.rsplit('/', 1)[1])
+        self._url_info      : str = r'https://app.uff.br' + tags[0].contents[0]['href']
+        self._id            : int = int(self._url_info.rsplit('/', 1)[1])
         self.ano_semestre   : str = self._soup['data-anosemestre'].strip()
         self.codigo         : str = tags[0].get_text().strip()
         self.nome           : str = tags[1].get_text().strip()
@@ -112,17 +115,21 @@ class Disciplina:
     def id(self) -> int:
         return self._id
 
+    @property
+    def url_info(self) -> str:
+        return self._url_info
+
 
     async def async_info(self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float]|None=(.05, .75)) -> DisciplinaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
-        soup = await requisicao.async_request(session, limite, self.link_info, espera_aleatoria=espera_aleatoria)
+        soup = await requisicao.async_request(session, limite, self._url_info, espera_aleatoria=espera_aleatoria)
         if isinstance(info_soup := soup.find('div', attrs={'class': "container-fluid mt-3"}), bs4.Tag):
             return DisciplinaInfo(info_soup)
 
 
     def info(self) -> DisciplinaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
-        soup = bs4.BeautifulSoup(self._SESSION.get(self.link_info).text, features='lxml')
+        soup = bs4.BeautifulSoup(self._SESSION.get(self._url_info).text, features='lxml')
         info_soup: bs4.Tag|None = soup.find('div', attrs={'class': "container-fluid mt-3"})
         if info_soup is not None:
             return DisciplinaInfo(info_soup)
