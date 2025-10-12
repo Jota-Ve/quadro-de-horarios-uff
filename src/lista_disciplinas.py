@@ -39,10 +39,10 @@ class TurmaInfo:
 
         @classmethod
         def from_soup(cls, soup: bs4.Tag) -> tuple[Self, ...]:
-            RGX_TURMA_ID = re.compile(r'/graduacao/quadrodehorarios/turmas/(\d{12})')
+            RGX_TURMA_ID = re.compile(r'/graduacao/quadrodehorarios/turmas/(\d+)')
             vagas: bs4.Tag = soup.find('h5', text='Vagas Alocadas').parent.parent
-            turma_id = int(RGX_TURMA_ID.match(vagas.find('form', action=RGX_TURMA_ID)['action']).group(1))
             if vagas.table:
+                turma_id = int(RGX_TURMA_ID.match(vagas.find('form', action=RGX_TURMA_ID)['action']).group(1))
                 return tuple(cls.from_tag(turma_id, tag) for tag in vagas.table.find_all('tr')[2:])
 
             elif vagas.find(text='Nenhuma vaga alocada para esta turma!'):
