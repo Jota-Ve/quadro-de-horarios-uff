@@ -41,12 +41,12 @@ def salva_reprovados(rel: relatorio.Relatorios, departamentos: Iterable[str]='',
             logger.info(f"Baixou reprovados de {ano}/{semestre} - {departamento_atual}")
 
 
-def extrai_disciplinas(listas_turmas: Iterable[ListaTurmas]) -> dict[str, str]:
+def extrai_disciplinas(*listas_turmas: ListaTurmas) -> dict[str, str]:
     """Extrai código e nome das disciplinas.
 
     Parameters
     ----------
-    listas_turmas : Iterable[ListaTurmas]
+    listas_turmas : ListaTurmas
         Listas de turmas das quais extrair as disciplinas.
 
     Returns
@@ -73,12 +73,12 @@ def salva_disciplinas(disciplinas: dict[str, str], nome: Path|str) -> None:
 
 
 type TurmaRow = tuple[str, str, int|None, int, int, str, None]
-def extrai_turmas(lista_disc: Iterable[ListaTurmas]):
+def extrai_turmas(*listas_turmas: ListaTurmas):
     """Extrai informações básicas das turmas de uma lista de ListaTurmas.
 
     Parameters
     ----------
-    lista_disc : Iterable[ListaTurmas]
+    listas_turmas : ListaTurmas
         Listas de turmas das quais extrair as informações.
 
     Returns
@@ -88,7 +88,7 @@ def extrai_turmas(lista_disc: Iterable[ListaTurmas]):
         (nome, tipo_de_oferta, modulo, ano, semestre, codigo_disciplina, professor).
     """
     turmas: dict[int, TurmaRow] = {}
-    for lista in lista_disc:
+    for lista in listas_turmas:
         for disc in lista.turmas:
             ano, semestre = map(int, [disc.ano_semestre[:4], disc.ano_semestre[4]])
             turmas[disc._id] = (disc.nome, disc.tipo_de_oferta, disc.modulo, ano, semestre, disc.codigo_disciplina, None)
@@ -148,14 +148,14 @@ def salva_vagas(vagas: Collection[lista_disciplinas.T_Vagas], nome: Path|str) ->
 
 
 _ExtracaoHorarios = dict[tuple[horario.DiaDaSemana, str, str], set[int]]
-def extrai_horarios_e_turmas(iter_listas_turmas: Iterable[ListaTurmas]) -> _ExtracaoHorarios:
+def extrai_horarios_e_turmas(*listas_turmas: ListaTurmas) -> _ExtracaoHorarios:
     """Extrai horários de uma lista de ListaTurmas e os IDs das turmas que os ocupam.
 
     Retorna um dicionário onde as chaves são tuplas (dia_da_semana, hora_inicio, hora_fim)
     e os valores são conjuntos de IDs das turmas que ocupam aquele horário.
     """
     horarios: _ExtracaoHorarios = dict()
-    for lista in iter_listas_turmas:
+    for lista in listas_turmas:
         for disc in lista.turmas:
             for dia, horarios_no_dia in disc.horario.items():
                 for disc_hr in horarios_no_dia:
