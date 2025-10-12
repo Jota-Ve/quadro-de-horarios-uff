@@ -38,6 +38,32 @@ def gera_semestres(inicio: tuple[int, int], fim: tuple[int, int]|None=None) -> I
             yield (ano, sem)
 
 
+def atualiza_disciplinas_turmas_e_horarios(
+    lista_turmas: lista_disciplinas.ListaTurmas,
+    disciplinas: dict[str, str],
+    turmas: dict[int, tuple],
+    horarios: extracao._ExtracaoHorarios
+    ) -> None:
+    """Atualiza os dados extraídos com as informações de uma lista de turmas.
+
+    Parameters
+    ----------
+    lista_turmas : lista_disciplinas.ListaTurmas
+        A lista de turmas a ser processada.
+    disciplinas : dict[str, str]
+        Dicionário onde as chaves são os códigos das disciplinas e os valores são os nomes.
+    turmas : dict[int, tuple]
+        Dicionário onde as chaves são os IDs das turmas e os valores são tuplas com informações básicas.
+    horarios : extracao._ExtracaoHorarios
+        Dicionário onde as chaves são tuplas (dia_da_semana, hora_inicio, hora_fim) e os valores são conjuntos de IDs das turmas que ocupam aquele horário.
+    """
+    # Atualiza disciplinas
+    disciplinas.update(extracao.extrai_disciplinas(lista_turmas))
+    # Atualiza turmas
+    turmas.update(extracao.extrai_turmas(lista_turmas))
+    # Atualiza horários
+    for horario, turmas_ in extracao.extrai_horarios_e_turmas(lista_turmas).items():
+        horarios.setdefault(horario, set()).update(turmas_)
 
 
 async def main(args: argparse.Namespace):
@@ -66,10 +92,7 @@ async def main(args: argparse.Namespace):
 
                 try:
                     async for lista_turmas in quadro.async_pesquisa(session, LIMITE, "", espera_aleatoria=ESPERA):
-                        disciplinas.update(extracao.extrai_disciplinas(lista_turmas))
-                        turmas.update(extracao.extrai_turmas(lista_turmas))
-                        for horario, turmas_ in extracao.extrai_horarios_e_turmas(lista_turmas).items():
-                            horarios.setdefault(horario, set()).update(turmas_)
+                        atualiza_disciplinas_turmas_e_horarios(lista_turmas, disciplinas=disciplinas, turmas=turmas, horarios=horarios)
 
                         # Cria e inicia as requisições assíncronas de todas as turmas da página/lista de turmas
                         tasks += [asyncio.create_task(tur.async_info(session, LIMITE, espera_aleatoria=ESPERA)) for tur in lista_turmas.turmas]
@@ -86,8 +109,8 @@ async def main(args: argparse.Namespace):
                         vagas.update(info.vagas)
 
                 finally:
-                    for unfinished in [t for t in tasks if not t.done()]:
-                        unfinished.cancel()
+                    for unfinished_task in [t for t in tasks if not t.done()]:
+                        unfinished_task.cancel()
 
         logging.info("Extração concluída com sucesso.")
     finally:
