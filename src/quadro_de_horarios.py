@@ -110,7 +110,7 @@ class QuadroDeHorarios():
 
 
     async def async_pesquisa(self, session: aiohttp.ClientSession, limite: asyncio.Semaphore,
-                             cod_ou_nome_disciplina: str="", espera: tuple[float, float] | None = (0.05, 0.75)) -> list[ListaTurmas]:
+                             cod_ou_nome_disciplina: str="", espera_aleatoria: tuple[float, float] | None = (0.05, 0.75)):
         """Pesquisa código ou nome da turma informado, levando
         em conta os possíveis filtros configurados anteriormente
 
@@ -128,30 +128,34 @@ class QuadroDeHorarios():
         resultados: list[ListaTurmas] = []
 
         logger.info(f"Requisitou 1º página de resultados")
-        soup_pagina = await requisicao.async_soup(session, limite, self.pagina_inicial, params=self._parametros, espera_aleatoria=espera)
+        soup_pagina = await requisicao.async_soup(session, limite, self.pagina_inicial, params=self._parametros, espera_aleatoria=espera_aleatoria)
         logger.info(f"Baixou 1º página de resultados")
-        resultados.append(ListaTurmas(soup_pagina))
+        yield ListaTurmas(soup_pagina)
 
         # Se não tem os botões pras próximas páginas, retorna a atual
         if not (soup_paginas := soup_pagina.find_all('li', {'class': 'page-item'})):
-            return resultados
+            return
 
         # Identifica qual a última página de resultados
         botao_ultima_pagina: bs4.Tag = soup_paginas[-1].a
         num_ultima_pagina = re.search(r'page=(\d+)', botao_ultima_pagina.attrs['href']).group(1)
         tasks = []
 
-        # Cria as tarefas de requisição assincrona de cada próxima página
-        for pagina in range(2, int(num_ultima_pagina) + 1):
-            tasks.append(requisicao.async_soup(session, limite, self.pagina_inicial, self._parametros | {'page': pagina}, espera_aleatoria=espera))
+        try:
+            # Cria e inicia as tarefas de requisição assíncrona de cada próxima página
+            for pagina in range(2, int(num_ultima_pagina) + 1):
+                tasks.append(asyncio.create_task(requisicao.async_soup(session, limite, self.pagina_inicial, self._parametros | {'page': pagina}, espera_aleatoria=espera_aleatoria)))
 
-        # Requisita de forma assíncrona cada uma e adiciona em resultados
-        for pagina, future in enumerate(asyncio.as_completed(tasks), start=2):
-            soup_pagina = await future
-            logger.info(f"Baixou {pagina}/{num_ultima_pagina} páginas de resultados")
-            resultados.append(ListaTurmas(soup_pagina))
+            # Requisita de forma assíncrona cada uma e adiciona em resultados
+            for pagina, future in enumerate(asyncio.as_completed(tasks), start=2):
+                soup_pagina = await future
+                logger.info(f"Baixou {pagina}/{num_ultima_pagina} páginas de resultados (Fora de ordem)")
+                yield ListaTurmas(soup_pagina)
 
-        return resultados
+        finally:
+            # Cancela as tarefas que não foram concluídas em caso de erro
+            for unfinished_task in filter(lambda t: not t.done(), tasks):
+                unfinished_task.cancel()
 
 
     def limpa_filtros(self):

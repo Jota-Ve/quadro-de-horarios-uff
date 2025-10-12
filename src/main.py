@@ -49,7 +49,7 @@ async def main(args: argparse.Namespace):
         quadro.seleciona_vagas_para_curso(args.curso)
 
     LIMITE = asyncio.Semaphore(50)  # Limite de requisições assíncronas simultâneas
-    ESPERA = (.01, 3)
+    ESPERA = (.01, 1.5)
     disciplinas : dict[str, str] = {}
     turmas      : dict[int, tuple] = {}
     horarios    : extracao._ExtracaoHorarios = {}
@@ -62,18 +62,16 @@ async def main(args: argparse.Namespace):
             for ano, semestre in gera_semestres((2025, 1), (2025, 2)):
                 quadro.seleciona_semestre(ano, semestre)
                 logger.info(f"Pesquisando {ano} / {semestre}...")
-
-                listas_turmas = await quadro.async_pesquisa(session, LIMITE, "", espera=ESPERA)
-
-                disciplinas.update(extracao.extrai_disciplinas(listas_turmas))
-                turmas.update(extracao.extrai_turmas(listas_turmas))
-                for horario, turmas_ in extracao.extrai_horarios_e_turmas(listas_turmas).items():
-                    horarios.setdefault(horario, set()).update(turmas_)
-
-                # Prepara a requisição assíncrona de todas as turmas de todas as páginas/listas de resultados
                 tasks = []
-                for lista in listas_turmas:
-                    tasks += [tur.async_info(session, LIMITE, espera_aleatoria=ESPERA) for tur in lista.turmas]
+
+                async for lista_turmas in quadro.async_pesquisa(session, LIMITE, "", espera_aleatoria=ESPERA):
+                    disciplinas.update(extracao.extrai_disciplinas(lista_turmas))
+                    turmas.update(extracao.extrai_turmas(lista_turmas))
+                    for horario, turmas_ in extracao.extrai_horarios_e_turmas(lista_turmas).items():
+                        horarios.setdefault(horario, set()).update(turmas_)
+
+                    # Prepara a requisição assíncrona de todas as turmas de todas as páginas/listas de resultados
+                    tasks += [tur.async_info(session, LIMITE, espera_aleatoria=ESPERA) for tur in lista_turmas.turmas]
 
                 # Processa as disciplinas e extrai informações de vagas e horários de forma assíncrona
                 for coro in asyncio.as_completed(tasks):
