@@ -5,10 +5,11 @@ import random
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Literal, Sequence
+from typing import Collection, Iterable, Literal, Sequence
 
 import curso
 import horario
+import lista_disciplinas
 import relatorio
 from lista_disciplinas import ListaTurmas
 
@@ -128,25 +129,22 @@ def salva_cursos(cursos: Iterable[curso.Curso], nome: Path|str) -> None:
             f.write(f"{_curso.id};{_curso.nome}\n")
 
 
-type VagasRow = dict[curso.Curso, dict[str, int]]
-def salva_vagas(vagas: dict[int, VagasRow], nome: Path|str) -> None:
+def salva_vagas(vagas: Collection[lista_disciplinas.T_Vagas], nome: Path|str) -> None:
     """ Salva as vagas em um arquivo CSV.
     Parameters
     ----------
-    vagas : dict[int, dict[curso.Curso, dict[str, int]]]
-        Dicionário onde as chaves são os IDs das turmas e os valores são dicionários
-        onde as chaves são os cursos e os valores são dicionários com as seguintes informações:
-        'vagas_regular', 'vagas_vestibular', 'inscritos_regular', 'inscritos_vestibular', 'excedentes', 'candidatos'.
+    vagas : Collection[lista_disciplinas.T_Vagas]
+        Vagas a serem salvas.
     nome : Path | str
         Nome do arquivo CSV onde as vagas serão salvas.
     """
     with open(nome, 'w', encoding='utf-8') as f:
         f.write('TURMA_ID;CURSO_ID;VAGAS_REGULAR;VAGAS_VESTIBULAR;INSCRITOS_REGULAR;INSCRITOS_VESTIBULAR;EXCEDENTES;CANDIDATOS\n')
-        for turma_id, cursos in sorted(vagas.items()):
-            for _curso, info in cursos.items():
-                f.write(f"{turma_id};{_curso.id};{info.get('vagas_regular', 0)};{info.get('vagas_vestibular', 0)};"
-                        f"{info.get('inscritos_regular', 0)};{info.get('inscritos_vestibular', 0)};"
-                        f"{info.get('excedentes', 0)};{info.get('candidatos', 0)}\n")
+        for vaga in sorted(vagas, key=lambda v: v.turma_id):
+            f.write(';'.join(map(str, (
+                vaga.turma_id, vaga.curso.id, vaga.vagas_regular, vaga.vagas_vestibular,
+                vaga.inscritos_regular, vaga.inscritos_vestibular, vaga.excedentes, vaga.candidatos)))
+            + '\n')
 
 
 _ExtracaoHorarios = dict[tuple[horario.DiaDaSemana, str, str], set[int]]

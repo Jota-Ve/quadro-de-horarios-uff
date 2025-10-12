@@ -9,6 +9,7 @@ import aiohttp
 import cli
 import curso
 import extracao
+import lista_disciplinas
 import quadro_de_horarios
 
 logging.getLogger('selenium').setLevel(logging.WARNING)
@@ -42,24 +43,27 @@ def gera_semestres(inicio: tuple[int, int], fim: tuple[int, int]|None=None) -> I
 async def main(args: argparse.Namespace):
     logger.debug(f"Argumentos: {args}")
     quadro = quadro_de_horarios.QuadroDeHorarios()
+
     quadro.seleciona_localidade('Niterói')
-    quadro.seleciona_vagas_para_curso(args.curso)
+    if args.curso:
+        quadro.seleciona_vagas_para_curso(args.curso)
 
     LIMITE = asyncio.Semaphore(25)
-    ESPERA = (0.03, 0.5)
+    ESPERA = (.1, 1.5)
     disciplinas : dict[str, str] = {}
     turmas      : dict[int, tuple] = {}
     horarios    : extracao._ExtracaoHorarios = {}
     cursos      : set[curso.Curso] = set()
-    vagas       : dict[int, dict[curso.Curso, dict[str, int]]] = {}
+    vagas       : set[lista_disciplinas.T_Vagas] = set()
 
     try:
-        async with aiohttp.ClientSession() as session:
-            for ano, semestre in gera_semestres((2015, 1), (2025, 2)):
+        headers = {"User-Agent": "Mozilla/5.0"}
+        async with aiohttp.ClientSession(headers=headers) as session:
+            for ano, semestre in gera_semestres((2025, 1), (2025, 2)):
                 quadro.seleciona_semestre(ano, semestre)
                 logger.info(f"Pesquisando {ano} / {semestre}...")
 
-                listas_turmas = await quadro.async_pesquisa(session, LIMITE, "", espera=ESPERA)
+                listas_turmas = await quadro.async_pesquisa(session, LIMITE, "z", espera=ESPERA)
 
                 disciplinas.update(extracao.extrai_disciplinas(listas_turmas))
                 turmas.update(extracao.extrai_turmas(listas_turmas))
@@ -76,8 +80,8 @@ async def main(args: argparse.Namespace):
                         if (info is None) or (not info.vagas):
                             continue
 
-                        cursos.update(info.vagas.keys())
-                        vagas[info.id] = info.vagas
+                        cursos.update(vaga.curso for vaga in info.vagas)
+                        vagas.update(info.vagas)
 
         logging.info("Extração concluída.")
     finally:
@@ -90,6 +94,7 @@ async def main(args: argparse.Namespace):
 
 
 if __name__ == '__main__':
+    t0 = datetime.datetime.now()
     args = cli.pega_argumentos()
     logger = logging.getLogger(__name__)
     logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s: %(message)s',
@@ -106,4 +111,4 @@ if __name__ == '__main__':
     except Exception:
         logger.critical("Erro inesperado:", exc_info=True)
     finally:
-        logger.info("Execução finalizada")
+        logger.info(f"Execução finalizada em {(datetime.datetime.now() - t0).total_seconds():.0f} segundos (começou em {t0})")

@@ -1,26 +1,71 @@
 
 import asyncio
-from datetime import datetime
+import copy
 import logging
 import re
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Self
-import copy
 
 import aiohttp
+import bs4
 import requests
+
 import curso
 import horario
-import bs4
-
 import requisicao
 
-
 logger = logging.getLogger(__name__)
+
+type T_Vagas = TurmaInfo.Vagas
+
 
 class TurmaInfo:
     """Representa informações detalhadas de uma turma de disciplina da UFF extraída de uma página HTML.
     Permite acessar informações como código, nome, semestre, vagas e última atualização.
     """
+
+    @dataclass(frozen=True, slots=True)
+    class Vagas:
+        turma_id: int
+        curso: 'curso.Curso'
+        vagas_regular: int
+        vagas_vestibular: int
+        inscritos_regular: int
+        inscritos_vestibular: int
+        excedentes: int
+        candidatos: int
+
+
+        @classmethod
+        def from_soup(cls, soup: bs4.Tag) -> tuple[Self, ...]:
+            RGX_TURMA_ID = re.compile(r'/graduacao/quadrodehorarios/turmas/(\d{12})')
+            vagas: bs4.Tag = soup.find('h5', text='Vagas Alocadas').parent.parent
+            turma_id = int(RGX_TURMA_ID.match(vagas.find('form', action=RGX_TURMA_ID)['action']).group(1))
+            if vagas.table:
+                return tuple(cls.from_tag(turma_id, tag) for tag in vagas.table.find_all('tr')[2:])
+
+            elif vagas.find(text='Nenhuma vaga alocada para esta turma!'):
+                logger.warning(f"Não possui vagas alocadas")
+                return tuple()
+
+            raise RuntimeError(f"Não encontrou campo de Vagas Alocadas em {soup!r}")
+
+
+        @classmethod
+        def from_tag(cls, turma_id: int, tag: bs4.Tag) -> Self:
+            return cls(
+                turma_id=turma_id,
+                curso=curso.Curso.from_string(tag.contents[1].text),
+                vagas_regular=int(tag.contents[3].text),
+                vagas_vestibular=int(tag.contents[5].text),
+                inscritos_regular=int(tag.contents[7].text),
+                inscritos_vestibular=int(tag.contents[9].text),
+                excedentes=int(tag.contents[11].text),
+                candidatos=int(tag.contents[13].text)
+            )
+
+
 
     #TODO: Suportar DisciplinaInfo vazia, sem informações, e ser == False nesse caso
     RGX_TITULO = re.compile(r'Turma ([\w\d]+) de ([\w\d]+) - (.*)', re.IGNORECASE)
@@ -44,24 +89,8 @@ class TurmaInfo:
         else:
             self.ultima_atualizacao = None
 
-        self.vagas: dict[curso.Curso, dict] = {}
-        vagas: bs4.Tag = soup.find('h5', text='Vagas Alocadas').parent.parent
-        if vagas.table:
-            for curso_tag in vagas.table.find_all('tr')[2:]:
-                self.vagas[curso.Curso.from_string(curso_tag.contents[1].text)] = {
-                    'vagas_regular': int(curso_tag.contents[3].text),
-                    'vagas_vestibular': int(curso_tag.contents[5].text),
-                    'inscritos_regular': int(curso_tag.contents[7].text),
-                    'inscritos_vestibular': int(curso_tag.contents[9].text),
-                    'excedentes': int(curso_tag.contents[11].text),
-                    'candidatos': int(curso_tag.contents[13].text)
-                }
+        self.vagas: tuple['TurmaInfo.Vagas', ...] = self.Vagas.from_soup(self._soup)
 
-        elif vagas.find(text='Nenhuma vaga alocada para esta turma!'):
-            logger.warning(f"{self} não possui vagas")
-
-        else:
-            raise RuntimeError(f"Não encontrou vagas na turma {self._url}")
 
 
     @property
@@ -142,7 +171,7 @@ class Turma:
 
     async def async_info(self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float]|None=(.05, .75)) -> TurmaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
-        soup = await requisicao.async_request(session, limite, self._url_info, espera_aleatoria=espera_aleatoria)
+        soup = await requisicao.async_soup(session, limite, self._url_info, espera_aleatoria=espera_aleatoria)
         if isinstance(info_soup := soup.find('div', attrs={'class': "container-fluid mt-3"}), bs4.Tag):
             return TurmaInfo(info_soup)
 
@@ -161,10 +190,10 @@ class ListaTurmas:
     Permite acessar as turmas, somar listas e filtrar por horários.
     """
 
-    def __init__(self, soup: bs4.BeautifulSoup):
+    def __init__(self, soup: bs4.Tag):
         self._soup: bs4.Tag|None = soup if soup.get('id') == "tabela-turmas" else soup.find(id="tabela-turmas")
         if self._soup is not None:
-            self._turmas = [Turma(tag) for tag in self._soup.tbody.find_all('tr')]
+            self._turmas: list[Turma] = [Turma(tag) for tag in self._soup.tbody.find_all('tr')]
         else:
             self._turmas = []
 

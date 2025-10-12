@@ -128,7 +128,7 @@ class QuadroDeHorarios():
         resultados: list[ListaTurmas] = []
 
         logger.info(f"Requisitou 1º página de resultados")
-        soup_pagina = await requisicao.async_request(session, limite, self.pagina_inicial, params=self._parametros, espera_aleatoria=espera)
+        soup_pagina = await requisicao.async_soup(session, limite, self.pagina_inicial, params=self._parametros, espera_aleatoria=espera)
         logger.info(f"Baixou 1º página de resultados")
         resultados.append(ListaTurmas(soup_pagina))
 
@@ -143,7 +143,7 @@ class QuadroDeHorarios():
 
         # Cria as tarefas de requisição assincrona de cada próxima página
         for pagina in range(2, int(num_ultima_pagina) + 1):
-            tasks.append(requisicao.async_request(session, limite, self.pagina_inicial, self._parametros | {'page': pagina}, espera_aleatoria=espera))
+            tasks.append(requisicao.async_soup(session, limite, self.pagina_inicial, self._parametros | {'page': pagina}, espera_aleatoria=espera))
 
         # Requisita de forma assíncrona cada uma e adiciona em resultados
         for pagina, future in enumerate(asyncio.as_completed(tasks), start=2):
