@@ -64,28 +64,34 @@ async def main(args: argparse.Namespace):
                 logger.info(f"Pesquisando {ano} / {semestre}...")
                 tasks = []
 
-                async for lista_turmas in quadro.async_pesquisa(session, LIMITE, "", espera_aleatoria=ESPERA):
-                    disciplinas.update(extracao.extrai_disciplinas(lista_turmas))
-                    turmas.update(extracao.extrai_turmas(lista_turmas))
-                    for horario, turmas_ in extracao.extrai_horarios_e_turmas(lista_turmas).items():
-                        horarios.setdefault(horario, set()).update(turmas_)
+                try:
+                    async for lista_turmas in quadro.async_pesquisa(session, LIMITE, "", espera_aleatoria=ESPERA):
+                        disciplinas.update(extracao.extrai_disciplinas(lista_turmas))
+                        turmas.update(extracao.extrai_turmas(lista_turmas))
+                        for horario, turmas_ in extracao.extrai_horarios_e_turmas(lista_turmas).items():
+                            horarios.setdefault(horario, set()).update(turmas_)
 
-                    # Prepara a requisição assíncrona de todas as turmas de todas as páginas/listas de resultados
-                    tasks += [tur.async_info(session, LIMITE, espera_aleatoria=ESPERA) for tur in lista_turmas.turmas]
+                        # Cria e inicia as requisições assíncronas de todas as turmas da página/lista de turmas
+                        tasks += [asyncio.create_task(tur.async_info(session, LIMITE, espera_aleatoria=ESPERA)) for tur in lista_turmas.turmas]
 
-                # Processa as disciplinas e extrai informações de vagas e horários de forma assíncrona
-                for coro in asyncio.as_completed(tasks):
-                    info = await coro
-                    # ignora turmas q nao possuem informações, como as de yoga de 2009/2
-                    # ignora turmas sem vagas alocadas, como: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
-                    if (info is None) or (not info.vagas):
-                        continue
+                    # Processa as requisições e extrai informações de vagas e horários de forma assíncrona
+                    for coro in asyncio.as_completed(tasks):
+                        info = await coro
+                        # ignora turmas q nao possuem informações, como as de yoga de 2009/2
+                        # ignora turmas sem vagas alocadas, como: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
+                        if (info is None) or (not info.vagas):
+                            continue
 
-                    cursos.update(vaga.curso for vaga in info.vagas)
-                    vagas.update(info.vagas)
+                        cursos.update(vaga.curso for vaga in info.vagas)
+                        vagas.update(info.vagas)
 
-        logging.info("Extração concluída.")
+                finally:
+                    for unfinished in [t for t in tasks if not t.done()]:
+                        unfinished.cancel()
+
+        logging.info("Extração concluída com sucesso.")
     finally:
+        logging.info("Salvando resultados...")
         extracao.salva_disciplinas(disciplinas, 'extracao/disciplinas.csv')
         extracao.salva_turmas(turmas, 'extracao/turmas.csv')
         extracao.salva_cursos(cursos, 'extracao/cursos.csv')
