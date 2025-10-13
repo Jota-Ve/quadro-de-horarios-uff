@@ -7,4 +7,4 @@ Seu uso deve ser cauteloso para não sobrecarregar os servidores, nem causar qua
 
 
 # Banco de Dados
-📦 [Dump de dados disponível aqui](https://github.com/Jota-Ve/quadro-de-horarios-uff-dump)
+📦 [Dump do Banco de Dados disponível aqui](https://github.com/Jota-Ve/quadro-de-horarios-uff-dump) 🎲
