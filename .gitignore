@@ -159,6 +159,10 @@ cython_debug/
 # Arquivos locais
 src/teste.py
 
+# Arquivos de Dump do Banco de Dados
+*.sql
+*.zip
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
