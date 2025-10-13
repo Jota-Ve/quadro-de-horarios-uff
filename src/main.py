@@ -2,117 +2,142 @@ import argparse
 import asyncio
 import datetime
 import logging
-from pathlib import Path
 from typing import Iterable, Literal
 
 import aiohttp
 
 import cli
+import curso
+import extracao
+import lista_disciplinas
 import quadro_de_horarios
-from lista_disciplinas import ListaDisciplinas
 
 logging.getLogger('selenium').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 
-async def salva_disciplinas_e_horarios(session: aiohttp.ClientSession, limite: asyncio.Semaphore, it_list_disc: Iterable[ListaDisciplinas], nome_disciplinas: Path|str, nome_horarios: Path|str, nome_vagas: str|Path, espera: tuple[float, float]=(0,.7)):
-    cabecalho_disciplinas = not Path(nome_disciplinas).exists()
-    cabecalho_horarios    = not Path(nome_horarios).exists()
-    cabecalho_vagas       = not Path(nome_vagas).exists()
 
-    with (open(nome_disciplinas, 'a', encoding='utf-8') as f_disc,
-            open(nome_horarios, 'a', encoding='utf-8') as f_hora,
-            open(nome_vagas, 'a', encoding='utf-8') as f_vagas):
+def gera_semestres(inicio: tuple[int, int], fim: tuple[int, int]|None=None) -> Iterable[tuple[int, Literal[1, 2]]]:
+    """Gera semestres a partir de um ano e semestre inicial até um ano e semestre final"""
+    def _antes_do_semestre_incial(ano: int, sem: int) -> bool: return (ano, sem) < (ano_inicial, sem_inicial)
+    def _depois_do_semestre_final(ano: int, sem: int) -> bool: return (ano, sem) > (ano_final, sem_final)
 
-        if cabecalho_disciplinas:
-            f_disc.write('ANO_SEMESTRE;CODIGO;TURMA;TIPO_DE_OFERTA;NOME;MODULO;LINK\n')
-        if cabecalho_horarios:
-            f_hora.write('ANO_SEMESTRE;CODIGO;TURMA;DIA;INICIO;FIM\n')
-        if cabecalho_vagas:
-            f_vagas.write('ANO_SEMESTRE;CODIGO;TURMA;NOME;VAGAS_REGULAR;VAGAS_VESTIBULAR;INSCRITOS_REGULAR;INSCRITOS_VESTIBULAR;EXCEDENTES;CANDIDATOS\n')
+    if fim is None:
+        hoje = datetime.date.today()
+        fim = (hoje.year, 1 if hoje.month <= 6 else 2)
 
+    ano_inicial, sem_inicial, ano_final, sem_final = inicio + fim
 
-        for lista in it_list_disc:
-            tasks = [disc.async_info(session, limite, espera_aleatoria=espera) for disc in lista.disciplinas]
-            info_list = await asyncio.gather(*tasks)
+    for ano in range(ano_inicial, ano_final + 1):
+        for sem in (1, 2):
+            if _antes_do_semestre_incial(ano, sem):
+                continue
+            if _depois_do_semestre_final(ano, sem):
+                break
 
-            for disciplina, info in zip(lista.disciplinas, info_list):
-                # ignora turmas q nao possuem informações, como as de yoga de 2009/2
-                if info is None: continue
-                # ignora turmas sem vagas alocadas, como: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
-                if not info.vagas:
-                    continue
-
-                for curso, vagas in info.vagas.items():
-                    linha_vagas = ';'.join([
-                        info.ano_semestre,
-                        info.codigo,
-                        info.turma,
-                        curso,
-                        str(vagas['vagas_regular']),
-                        str(vagas['vagas_vestibular']),
-                        str(vagas['inscritos_regular']),
-                        str(vagas['inscritos_vestibular']),
-                        str(vagas['excedentes']),
-                        str(vagas['candidatos']),
-                    ]) + '\n'
-
-                    f_vagas.write(linha_vagas)
-
-                # Disciplinas
-                f_disc.write(';'.join([
-                    disciplina.ano_semestre, disciplina.codigo, disciplina.turma,
-                    disciplina.tipo_de_oferta, disciplina.nome, disciplina.modulo,
-                    disciplina.link_info
-                ]) + '\n')
-
-                # Horários
-                for dia, horarios in disciplina.horario.items():
-                    for hora in horarios:
-                        f_hora.write(';'.join([
-                            disciplina.ano_semestre, disciplina.codigo,
-                            disciplina.turma, dia.name, hora.inicio, hora.fim
-                        ]) + '\n')
+            yield (ano, sem)
 
 
-async def extracao(quadro: quadro_de_horarios.QuadroDeHorarios, ano_semestre: Iterable[tuple[int, Literal[1,2]]], pesquisa: str=''):
-    nome_disciplinas = Path('extracao/disciplinas.csv')
-    nome_horarios = Path('extracao/horarios.csv')
-    nome_vagas = Path('extracao/vagas.csv')
+def atualiza_disciplinas_turmas_e_horarios(
+    lista_turmas: lista_disciplinas.ListaTurmas,
+    disciplinas: dict[str, str],
+    turmas: dict[int, tuple],
+    horarios: extracao._ExtracaoHorarios
+    ) -> None:
+    """Atualiza os dados extraídos com as informações de uma lista de turmas.
 
-    nome_disciplinas.unlink(missing_ok=True)
-    nome_horarios.unlink(missing_ok=True)
-    nome_vagas.unlink(missing_ok=True)
-
-    LIMITE = asyncio.Semaphore(15)
-    ESPERA = (0.05, 0.75)
-    async with aiohttp.ClientSession() as session:
-        for ano, semestre in ano_semestre:
-            quadro.seleciona_semestre(ano, semestre)
-            logger.info(f"Pesquisando {ano} / {semestre}...")
-            lista_disc = await quadro.async_pesquisa(session, LIMITE, pesquisa, espera=ESPERA)
-            await salva_disciplinas_e_horarios(session, LIMITE, lista_disc, nome_disciplinas, nome_horarios, nome_vagas, espera=ESPERA)
-
-
-async def salva_turmas(args: argparse.Namespace):
-    quadro = quadro_de_horarios.QuadroDeHorarios()
-    quadro.seleciona_localidade('Niterói')
-    # if args.curso:
-    #     quadro.seleciona_vagas_para_curso(args.curso)
-    # quadro.seleciona_vagas_para_curso('sistemas de informação')
-
-    hoje = datetime.date.today()
-    await extracao(quadro,
-             [(ano, sem) for ano in range(2015, 2025) for sem in (1,2)
-              if not (ano==hoje.year and sem==hoje.month//6)])
+    Parameters
+    ----------
+    lista_turmas : lista_disciplinas.ListaTurmas
+        A lista de turmas a ser processada.
+    disciplinas : dict[str, str]
+        Dicionário onde as chaves são os códigos das disciplinas e os valores são os nomes.
+    turmas : dict[int, tuple]
+        Dicionário onde as chaves são os IDs das turmas e os valores são tuplas com informações básicas.
+    horarios : extracao._ExtracaoHorarios
+        Dicionário onde as chaves são tuplas (dia_da_semana, hora_inicio, hora_fim) e os valores são conjuntos de IDs das turmas que ocupam aquele horário.
+    """
+    # Atualiza disciplinas
+    disciplinas.update(extracao.extrai_disciplinas(lista_turmas))
+    # Atualiza turmas
+    turmas.update(extracao.extrai_turmas(lista_turmas))
+    # Atualiza horários
+    for horario, turmas_ in extracao.extrai_horarios_e_turmas(lista_turmas).items():
+        horarios.setdefault(horario, set()).update(turmas_)
 
 
 async def main(args: argparse.Namespace):
     logger.debug(f"Argumentos: {args}")
-    await salva_turmas(args)
+    quadro = quadro_de_horarios.QuadroDeHorarios()
+
+    quadro.seleciona_localidade('Niterói')
+    if args.curso:
+        quadro.seleciona_vagas_para_curso(args.curso)
+
+    ESPERA: tuple[float, float] = (.01, 3.5)
+    # Limite de requisições assíncronas simultâneas
+    LIMITE = asyncio.Semaphore(50)
+    # Cria um ClientTimeout sem limites
+    TIMEOUT = aiohttp.ClientTimeout(total=None, connect=None, sock_connect=None, sock_read=None)
+
+    disciplinas : dict[str, str] = {}
+    turmas      : dict[int, tuple] = {}
+    horarios    : extracao._ExtracaoHorarios = {}
+    cursos      : set[curso.Curso] = set()
+    vagas       : set[lista_disciplinas.T_Vagas] = set()
+
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        async with aiohttp.ClientSession(headers=headers, timeout=TIMEOUT) as session:
+            for ano, semestre in gera_semestres((2009, 1), (2025, 2)):
+                quadro.seleciona_semestre(ano, semestre)
+                logger.info(f"Pesquisando {ano} / {semestre}...")
+                tasks = []
+
+                try:
+                    async for lista_turmas in quadro.async_pesquisa(session, LIMITE, "", espera_aleatoria=ESPERA):
+                        atualiza_disciplinas_turmas_e_horarios(lista_turmas, disciplinas=disciplinas, turmas=turmas, horarios=horarios)
+
+                        # Cria e inicia as requisições assíncronas de todas as turmas da página/lista de turmas
+                        tasks += [asyncio.create_task(tur.async_info(session, LIMITE, espera_aleatoria=ESPERA)) for tur in lista_turmas.turmas]
+
+                    # Processa as requisições e extrai informações de vagas e horários de forma assíncrona
+                    for i, future in enumerate(asyncio.as_completed(tasks), start=1):
+                        try:
+                            info: lista_disciplinas.TurmaInfo|None = await future
+                        except Exception:
+                            # Ignora turmas que não possuem página de informação (erro http 5XX)
+                            logger.exception(f"Erro ao processar turma:")
+                            logger.warning(f"Ignorando turma...")
+                            continue
+
+                        logger.info(f"[{ano}-{semestre}] Processou {i}/{len(tasks)} turmas (Fora de ordem)")
+                        # ignora turmas q nao possuem informações, como as de yoga de 2009/2
+                        # ignora turmas sem vagas alocadas, como: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
+                        if (info is None) or (not info.vagas):
+                            continue
+
+                        cursos.update(vaga.curso for vaga in info.vagas)
+                        vagas.update(info.vagas)
+
+                finally:
+                    for unfinished_task in [t for t in tasks if not t.done()]:
+                        logger.warning(f"Cancelando tarefa pendente... {unfinished_task}")
+                        unfinished_task.cancel()
+
+        logging.info("Extração concluída com sucesso.")
+    finally:
+        logging.info("Salvando resultados...")
+        extracao.salva_disciplinas(disciplinas, 'extracao/disciplinas.csv')
+        extracao.salva_turmas(turmas, 'extracao/turmas.csv')
+        extracao.salva_cursos(cursos, 'extracao/cursos.csv')
+        extracao.salva_horarios(horarios, 'extracao/horarios.csv', 'extracao/horarios_turmas.csv')
+        extracao.salva_vagas(vagas, 'extracao/vagas.csv')
+
 
 
 if __name__ == '__main__':
+    t0 = datetime.datetime.now()
     args = cli.pega_argumentos()
     logger = logging.getLogger(__name__)
     logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s: %(message)s',
@@ -129,4 +154,4 @@ if __name__ == '__main__':
     except Exception:
         logger.critical("Erro inesperado:", exc_info=True)
     finally:
-        logger.info("Execução finalizada")
+        logger.info(f"Execução finalizada em {(datetime.datetime.now() - t0).total_seconds():.0f} segundos (começou em {t0})")
