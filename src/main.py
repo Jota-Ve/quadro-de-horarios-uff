@@ -74,8 +74,12 @@ async def main(args: argparse.Namespace):
     if args.curso:
         quadro.seleciona_vagas_para_curso(args.curso)
 
-    LIMITE = asyncio.Semaphore(50)  # Limite de requisições assíncronas simultâneas
-    ESPERA = (.01, 1.5)
+    ESPERA: tuple[float, float] = (.01, 3.5)
+    # Limite de requisições assíncronas simultâneas
+    LIMITE = asyncio.Semaphore(50)
+    # Cria um ClientTimeout sem limites
+    TIMEOUT = aiohttp.ClientTimeout(total=None, connect=None, sock_connect=None, sock_read=None)
+
     disciplinas : dict[str, str] = {}
     turmas      : dict[int, tuple] = {}
     horarios    : extracao._ExtracaoHorarios = {}
@@ -84,8 +88,8 @@ async def main(args: argparse.Namespace):
 
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
-        async with aiohttp.ClientSession(headers=headers) as session:
-            for ano, semestre in gera_semestres((2025, 1), (2025, 2)):
+        async with aiohttp.ClientSession(headers=headers, timeout=TIMEOUT) as session:
+            for ano, semestre in gera_semestres((2009, 1), (2025, 2)):
                 quadro.seleciona_semestre(ano, semestre)
                 logger.info(f"Pesquisando {ano} / {semestre}...")
                 tasks = []
@@ -98,8 +102,16 @@ async def main(args: argparse.Namespace):
                         tasks += [asyncio.create_task(tur.async_info(session, LIMITE, espera_aleatoria=ESPERA)) for tur in lista_turmas.turmas]
 
                     # Processa as requisições e extrai informações de vagas e horários de forma assíncrona
-                    for coro in asyncio.as_completed(tasks):
-                        info = await coro
+                    for i, future in enumerate(asyncio.as_completed(tasks), start=1):
+                        try:
+                            info: lista_disciplinas.TurmaInfo|None = await future
+                        except Exception:
+                            # Ignora turmas que não possuem página de informação (erro http 5XX)
+                            logger.exception(f"Erro ao processar turma:")
+                            logger.warning(f"Ignorando turma...")
+                            continue
+
+                        logger.info(f"[{ano}-{semestre}] Processou {i}/{len(tasks)} turmas (Fora de ordem)")
                         # ignora turmas q nao possuem informações, como as de yoga de 2009/2
                         # ignora turmas sem vagas alocadas, como: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
                         if (info is None) or (not info.vagas):
@@ -110,6 +122,7 @@ async def main(args: argparse.Namespace):
 
                 finally:
                     for unfinished_task in [t for t in tasks if not t.done()]:
+                        logger.warning(f"Cancelando tarefa pendente... {unfinished_task}")
                         unfinished_task.cancel()
 
         logging.info("Extração concluída com sucesso.")
