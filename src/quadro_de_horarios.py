@@ -125,11 +125,14 @@ class QuadroDeHorarios():
 
         self._parametros['utf8'] = '✓'
         self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_disciplina
-        resultados: list[ListaTurmas] = []
 
-        logger.info(f"Requisitou 1º página de resultados")
+        ano_semestre: str = self._parametros.get('q[anosemestre_eq]') or ''
+        if ano_semestre:
+            ano_semestre = f'[{ano_semestre[:-1]}-{ano_semestre[-1]}] '
+
+        logger.info(f"{ano_semestre}Requisitou 1º página de resultados")
         soup_pagina = await requisicao.async_soup(session, limite, self.pagina_inicial, params=self._parametros, espera_aleatoria=espera_aleatoria)
-        logger.info(f"Baixou 1º página de resultados")
+        logger.info(f"{ano_semestre}Baixou 1º página de resultados")
         yield ListaTurmas(soup_pagina)
 
         # Se não tem os botões pras próximas páginas, retorna a atual
@@ -149,12 +152,13 @@ class QuadroDeHorarios():
             # Requisita de forma assíncrona cada uma e adiciona em resultados
             for pagina, future in enumerate(asyncio.as_completed(tasks), start=2):
                 soup_pagina = await future
-                logger.info(f"Baixou {pagina}/{num_ultima_pagina} páginas de resultados (Fora de ordem)")
+                logger.info(f"{ano_semestre}Baixou {pagina}/{num_ultima_pagina} páginas de resultados (Fora de ordem)")
                 yield ListaTurmas(soup_pagina)
 
         finally:
             # Cancela as tarefas que não foram concluídas em caso de erro
             for unfinished_task in filter(lambda t: not t.done(), tasks):
+                logger.warning(f"Cancelando tarefa pendente... {unfinished_task}")
                 unfinished_task.cancel()
 
 
