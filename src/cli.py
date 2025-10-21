@@ -1,7 +1,6 @@
 import argparse
-from collections import abc
-import horario
 
+import horario
 
 
 def filtra_horario(args) -> dict[horario.DiaDaSemana, list[horario.Horario]]:

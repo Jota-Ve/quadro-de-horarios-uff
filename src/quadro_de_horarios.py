@@ -109,14 +109,16 @@ class QuadroDeHorarios():
             yield ListaTurmas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
 
-    async def async_pesquisa(self, scraper: requisicao.AsyncScraper, cod_ou_nome_disciplina: str=""):
+    async def async_pesquisa(self, scraper: requisicao.AsyncScraper, cod_ou_nome_disciplina: str="", strainer: bs4.SoupStrainer|None = ListaTurmas.DEFAULT_STRAINER):
         """Pesquisa código ou nome da turma informado, levando em conta os
         possíveis filtros configurados anteriormente
-
+.
         Args:
             scraper: Instância de AsyncScraper para fazer as requisições assíncronas.
 
             cod_ou_nome_disciplina: Código ou nome da disciplina a ser buscada. Defaults to "".
+
+            strainer: SoupStrainer para filtrar o conteúdo baixado. Defaults to ListaTurmas.DEFAULT_STRAINER.
 
         Yields:
             Classe que contém dados de todas as turmas encontradas
@@ -129,8 +131,8 @@ class QuadroDeHorarios():
         if ano_semestre:
             ano_semestre = f'[{ano_semestre[:-1]}-{ano_semestre[-1]}] '
 
-        logger.info(f"{ano_semestre}Requisitou 1º página de resultados")
-        soup_pagina = await scraper.fetch_soup(self.pagina_inicial, params=self._parametros)
+        logger.info(f"{ano_semestre}Requisitando 1º página de resultados")
+        soup_pagina = await scraper.fetch_soup(self.pagina_inicial, params=self._parametros, strainer=strainer)
         logger.info(f"{ano_semestre}Baixou 1º página de resultados")
         yield ListaTurmas(soup_pagina)
 
@@ -146,7 +148,7 @@ class QuadroDeHorarios():
         try:
             # Cria e inicia as tarefas de requisição assíncrona de cada próxima página
             for pagina in range(2, int(num_ultima_pagina) + 1):
-                tasks.append(asyncio.create_task(scraper.fetch_soup(self.pagina_inicial, self._parametros | {'page': pagina})))
+                tasks.append(asyncio.create_task(scraper.fetch_soup(self.pagina_inicial, self._parametros | {'page': pagina}, strainer=strainer)))
 
             # Requisita de forma assíncrona cada uma e adiciona em resultados
             for pagina, future in enumerate(asyncio.as_completed(tasks), start=2):

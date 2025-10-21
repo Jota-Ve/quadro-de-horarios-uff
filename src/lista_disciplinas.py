@@ -172,7 +172,7 @@ class Turma:
 
     async def async_info(self, scraper: requisicao.AsyncScraper, strainer: bs4.SoupStrainer|None = TurmaInfo.DEFAULT_STRAINER) -> TurmaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
-        soup = await scraper.fetch_soup(self._url_info, strainer=None)
+        soup = await scraper.fetch_soup(self._url_info, strainer=strainer)
         if isinstance(info_soup := soup.find('div', attrs={'class': "container-fluid mt-3"}), bs4.Tag):
             return TurmaInfo(info_soup)
 
@@ -196,6 +196,7 @@ class ListaTurmas:
     """Representa uma lista de turmas de disciplinas da UFF extraídas de uma tabela HTML.
     Permite acessar as turmas, somar listas e filtrar por horários.
     """
+    DEFAULT_STRAINER = bs4.SoupStrainer(name="div", id="containerBuscaTurmas")
 
     def __init__(self, soup: bs4.Tag):
         self._soup: bs4.Tag|None = soup if soup.get('id') == "tabela-turmas" else soup.find(id="tabela-turmas")
