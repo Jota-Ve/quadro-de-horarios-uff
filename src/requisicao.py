@@ -6,38 +6,35 @@ from typing import Any
 import aiohttp
 import bs4
 
-logger = logging.getLogger(__name__)
+
+class AsyncScraper:
+    def __init__( self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float] | None = (0.05, 0.75)):
+        self.session = session
+        self.limite = limite
+        self.espera_aleatoria = espera_aleatoria
 
 
+    async def fetch_html(self,url: str,params: dict[str, Any] | None = None) -> str:
+        """Faz requisição HTTP com limite de concorrência e espera aleatória."""
+        async with self.limite:
+            try:
+                async with self.session.get(url, params=params or {}) as response:
+                    response.raise_for_status()
+                    html = await response.text()
+            except Exception as e:
+                logging.error(f"Erro ao requisitar {url}: {e}")
+                raise
 
-async def async_soup(session: aiohttp.ClientSession, limite: asyncio.Semaphore, link: str, params: dict[str, Any]|None=None, espera_aleatoria: tuple[float, float]|None=(.05, .75))  -> bs4.BeautifulSoup:
-    """Faz uma requisição HTTP assíncrona e retorna o conteúdo como um objeto BeautifulSoup"""
-    html = await _async_request(session, limite, link, params=params, espera_aleatoria=espera_aleatoria)
-    return bs4.BeautifulSoup(html, features='lxml')
+        # espera aleatória após a requisição
+        if self.espera_aleatoria:
+            delay = random.uniform(*self.espera_aleatoria)
+            logging.debug(f"Esperando {delay:.2f}s antes da próxima requisição")
+            await asyncio.sleep(delay)
+
+        return html
 
 
-async def async_espere(segundos: float) -> None:
-    """Função auxiliar para esperar de forma assíncrona"""
-    logger.debug(f"Esperando assíncronamente {segundos:.2f} segundos")
-    await asyncio.sleep(segundos)
-
-
-async def _async_request(session: aiohttp.ClientSession, limite: asyncio.Semaphore, link: str, params: dict[str, Any]|None=None, espera_aleatoria: tuple[float, float]|None=(.05, .75))   -> str:
-    """Função auxiliar para fazer requisições HTTP de forma assíncrona com limite de concorrência e espera aleatória"""
-    async def _async_request_aux(session: aiohttp.ClientSession, link: str, params: dict[str, Any]|None) -> str:
-        async with session.get(link, params=(params or {})) as response:
-            response.raise_for_status()
-            html: str = await response.text()
-            return html
-
-    async with limite:
-        try:
-            html = await _async_request_aux(session, link, params)
-        except Exception as e:
-            logger.exception(f"Falha ao requisitar {link}: {e}")
-            raise
-
-    espera = random.uniform(*espera_aleatoria) if espera_aleatoria else 0
-    await async_espere(espera)
-
-    return html
+    async def fetch_soup(self, url: str, params: dict[str, Any] | None = None, strainer: bs4.SoupStrainer | None = None) -> bs4.BeautifulSoup:
+        """Retorna o conteúdo como BeautifulSoup, com opção de SoupStrainer."""
+        html = await self.fetch_html(url, params=params)
+        return bs4.BeautifulSoup(html, "lxml", parse_only=strainer)

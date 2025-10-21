@@ -70,6 +70,7 @@ class TurmaInfo:
     #TODO: Suportar DisciplinaInfo vazia, sem informações, e ser == False nesse caso
     RGX_TITULO = re.compile(r'Turma ([\w\d]+) de ([\w\d]+) - (.*)', re.IGNORECASE)
     RGX_SEMESTRE = re.compile(r'\d+')
+    DEFAULT_STRAINER = bs4.SoupStrainer(name='div', attrs={'class': "container-fluid mt-3"})
 
     def __init__(self, soup: bs4.element.Tag) -> None:
         self._soup = soup
@@ -169,11 +170,14 @@ class Turma:
     #endregion
 
 
-    async def async_info(self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float]|None=(.05, .75)) -> TurmaInfo|None:
+    async def async_info(self, scraper: requisicao.AsyncScraper, strainer: bs4.SoupStrainer|None = TurmaInfo.DEFAULT_STRAINER) -> TurmaInfo|None:
         #TODO: Retornar apenas DisciplinaInfo, mas caso seja vazio ela ser == False
-        soup = await requisicao.async_soup(session, limite, self._url_info, espera_aleatoria=espera_aleatoria)
+        soup = await scraper.fetch_soup(self._url_info, strainer=None)
         if isinstance(info_soup := soup.find('div', attrs={'class': "container-fluid mt-3"}), bs4.Tag):
             return TurmaInfo(info_soup)
+
+        logging.warning(f"Não encontrou informações detalhadas em {self._url_info!r}")
+        return None
 
 
     def info(self) -> TurmaInfo|None:
@@ -182,6 +186,9 @@ class Turma:
         info_soup: bs4.Tag|None = soup.find('div', attrs={'class': "container-fluid mt-3"})
         if info_soup is not None:
             return TurmaInfo(info_soup)
+
+        logging.warning(f"Não encontrou informações detalhadas em {self._url_info!r}")
+        return None
 
 
 

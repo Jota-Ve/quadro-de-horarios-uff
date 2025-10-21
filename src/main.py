@@ -11,6 +11,7 @@ import curso
 import extracao
 import lista_disciplinas
 import quadro_de_horarios
+import requisicao
 
 logging.getLogger('selenium').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
@@ -70,7 +71,7 @@ async def main(args: argparse.Namespace):
     logger.debug(f"Argumentos: {args}")
     quadro = quadro_de_horarios.QuadroDeHorarios()
 
-    quadro.seleciona_localidade('Niterói')
+    # quadro.seleciona_localidade('Niterói')
     if args.curso:
         quadro.seleciona_vagas_para_curso(args.curso)
 
@@ -89,17 +90,18 @@ async def main(args: argparse.Namespace):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         async with aiohttp.ClientSession(headers=headers, timeout=TIMEOUT) as session:
+            scraper = requisicao.AsyncScraper(session, limite=LIMITE, espera_aleatoria=ESPERA)
             for ano, semestre in gera_semestres((2009, 1), (2025, 2)):
                 quadro.seleciona_semestre(ano, semestre)
                 logger.info(f"Pesquisando {ano} / {semestre}...")
                 tasks = []
 
                 try:
-                    async for lista_turmas in quadro.async_pesquisa(session, LIMITE, "", espera_aleatoria=ESPERA):
+                    async for lista_turmas in quadro.async_pesquisa(scraper, ""):
                         atualiza_disciplinas_turmas_e_horarios(lista_turmas, disciplinas=disciplinas, turmas=turmas, horarios=horarios)
 
                         # Cria e inicia as requisições assíncronas de todas as turmas da página/lista de turmas
-                        tasks += [asyncio.create_task(tur.async_info(session, LIMITE, espera_aleatoria=ESPERA)) for tur in lista_turmas.turmas]
+                        tasks += [asyncio.create_task(tur.async_info(scraper)) for tur in lista_turmas.turmas]
 
                     # Processa as requisições e extrai informações de vagas e horários de forma assíncrona
                     for i, future in enumerate(asyncio.as_completed(tasks), start=1):
@@ -108,7 +110,7 @@ async def main(args: argparse.Namespace):
                         except Exception:
                             # Ignora turmas que não possuem página de informação (erro http 5XX)
                             logger.exception(f"Erro ao processar turma:")
-                            logger.warning(f"Ignorando turma...")
+                            logger.warning(f"Ignorando turma com erro...")
                             continue
 
                         logger.info(f"[{ano}-{semestre}] Processou {i}/{len(tasks)} turmas (Fora de ordem)")
