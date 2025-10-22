@@ -28,7 +28,7 @@ class AsyncScraper:
         # espera aleatória após a requisição
         if self.espera_aleatoria:
             delay = random.uniform(*self.espera_aleatoria)
-            logging.debug(f"Esperando {delay:.2f}s antes da próxima requisição")
+            # logging.debug(f"Esperando {delay:.2f}s antes da próxima requisição")
             await asyncio.sleep(delay)
 
         return html

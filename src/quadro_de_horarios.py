@@ -133,7 +133,6 @@ class QuadroDeHorarios():
 
         logger.info(f"{ano_semestre}Requisitando 1º página de resultados")
         soup_pagina = await scraper.fetch_soup(self.pagina_inicial, params=self._parametros, strainer=strainer)
-        logger.info(f"{ano_semestre}Baixou 1º página de resultados")
         yield ListaTurmas(soup_pagina)
 
         # Se não tem os botões pras próximas páginas, retorna a atual
@@ -152,8 +151,8 @@ class QuadroDeHorarios():
 
             # Requisita de forma assíncrona cada uma e adiciona em resultados
             for pagina, future in enumerate(asyncio.as_completed(tasks), start=2):
+                logger.info(f"{ano_semestre}Requisitando {pagina}/{num_ultima_pagina} páginas de resultados (Fora de ordem)")
                 soup_pagina = await future
-                logger.info(f"{ano_semestre}Baixou {pagina}/{num_ultima_pagina} páginas de resultados (Fora de ordem)")
                 yield ListaTurmas(soup_pagina)
 
         finally:

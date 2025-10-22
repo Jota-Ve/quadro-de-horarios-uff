@@ -75,7 +75,6 @@ class TurmaInfo:
     def __init__(self, soup: bs4.element.Tag) -> None:
         self._soup = soup
         self._url: str = r'https://app.uff.br' + soup.find('form', attrs={'class': re.compile("^edit_turma")})['action']
-        logger.debug(self._url)
 
         self._id    : int = int(self._url.rsplit('/', 1)[1])
         match = self.RGX_TITULO.search(soup.h1.text.strip())
@@ -106,6 +105,12 @@ class TurmaInfo:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(bs4.BeautifulSoup(requests.get({self._url!r}).text, features='lxml'))"
+
+
+    def savar_html(self, path: str) -> None:
+        """Salva o HTML da página de informações da turma em um arquivo."""
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(str(self._soup))
 
 
 
@@ -265,3 +270,9 @@ class ListaTurmas:
                 turmas.append(tur)
 
         return turmas
+
+
+    def savar_html(self, path: str) -> None:
+        """Salva o HTML da página de informações da turma em um arquivo."""
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(str(self._soup))
