@@ -111,8 +111,8 @@ class QuadroDeHorarios():
 
     async def async_pesquisa(self, scraper: requisicao.AsyncScraper, cod_ou_nome_disciplina: str="", strainer: bs4.SoupStrainer|None = ListaTurmas.DEFAULT_STRAINER):
         """Pesquisa código ou nome da turma informado, levando em conta os
-        possíveis filtros configurados anteriormente
-.
+        possíveis filtros configurados anteriormente.
+
         Args:
             scraper: Instância de AsyncScraper para fazer as requisições assíncronas.
 
@@ -142,12 +142,14 @@ class QuadroDeHorarios():
         # Identifica qual a última página de resultados
         botao_ultima_pagina: bs4.Tag = soup_paginas[-1].a
         num_ultima_pagina = re.search(r'page=(\d+)', botao_ultima_pagina.attrs['href']).group(1)
-        tasks = []
+        tasks: requisicao.T_tasks = []
 
         try:
             # Cria e inicia as tarefas de requisição assíncrona de cada próxima página
             for pagina in range(2, int(num_ultima_pagina) + 1):
-                tasks.append(asyncio.create_task(scraper.fetch_soup(self.pagina_inicial, self._parametros | {'page': pagina}, strainer=strainer)))
+                parametros_com_pagina = (self._parametros | {'page': pagina})
+                task_name = f'{self.pagina_inicial}/?' + '&'.join(f'{k}={v}' for k,v in parametros_com_pagina.items() if v)
+                tasks.append(asyncio.create_task(scraper.fetch_soup(self.pagina_inicial, parametros_com_pagina, strainer=strainer), name=task_name))
 
             # Requisita de forma assíncrona cada uma e adiciona em resultados
             for pagina, future in enumerate(asyncio.as_completed(tasks), start=2):
@@ -156,10 +158,8 @@ class QuadroDeHorarios():
                 yield ListaTurmas(soup_pagina)
 
         finally:
-            # Cancela as tarefas que não foram concluídas em caso de erro
-            for unfinished_task in filter(lambda t: not t.done(), tasks):
-                logger.warning(f"Cancelando tarefa pendente... {unfinished_task}")
-                unfinished_task.cancel()
+            # Cancela as tarefas que não foram concluídas
+            requisicao.AsyncScraper.close_tasks(tasks)
 
 
     def limpa_filtros(self):

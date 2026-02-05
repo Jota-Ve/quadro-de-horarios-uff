@@ -3,9 +3,10 @@ import itertools
 import logging
 import random
 import time
+from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import Collection, Iterable, Literal, Sequence
+from typing import Any, Literal
 
 import curso
 import horario
@@ -95,7 +96,7 @@ def extrai_turmas(*listas_turmas: ListaTurmas):
 
     return turmas
 
-def salva_turmas(turmas: dict[int, TurmaRow], nome: Path|str) -> None:
+def salva_turmas(turmas: dict[int, TurmaRow], nome: Path|str) -> None: #FIXME: modulo é a quantidade total de vagas, não a carga horária
     """Salva as turmas em um arquivo CSV.
         Parameters
         ----------
@@ -105,7 +106,7 @@ def salva_turmas(turmas: dict[int, TurmaRow], nome: Path|str) -> None:
         nome : Path | str
             Nome do arquivo CSV onde as turmas serão salvas.
     """
-    def _sanitiza_valores_invalidos(x) -> Literal['NULL']|str:
+    def _sanitiza_valores_invalidos(x: Any) -> Literal['NULL']|str:
         return 'NULL' if x in {None, '-'} else str(x)
 
     with open(nome, 'w', encoding='utf-8') as f:

@@ -1,13 +1,12 @@
 
-import asyncio
 import copy
 import logging
+import pathlib
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Self
 
-import aiohttp
 import bs4
 import requests
 
@@ -92,11 +91,16 @@ class TurmaInfo:
         self.vagas: tuple['TurmaInfo.Vagas', ...] = self.Vagas.from_soup(self._soup)
 
 
-
     @property
     def id(self) -> int: return self._id
     @property
     def url(self) -> str: return self._url
+
+    @property
+    def filename_padrao(self) -> pathlib.Path:
+        """Retorna o nome de arquivo padrão para salvar o HTML desta turma."""
+        ano, semestre = self.ano_semestre[:4], self.ano_semestre[4]
+        return pathlib.Path(f"turma_{ano}_{semestre}_{self.id:012}.html")
 
 
     def __str__(self) -> str:
@@ -107,8 +111,14 @@ class TurmaInfo:
         return f"{self.__class__.__name__}(bs4.BeautifulSoup(requests.get({self._url!r}).text, features='lxml'))"
 
 
-    def savar_html(self, path: str) -> None:
-        """Salva o HTML da página de informações da turma em um arquivo."""
+    def savar_html(self, path: str|pathlib.Path) -> None:
+        """Salva o HTML da página de informações da turma em um arquivo.
+
+        Parameters
+        ----------
+        path : str | pathlib.Path
+            Caminho do arquivo onde o HTML será salvo.
+        """
         with open(path, 'w', encoding='utf-8') as f:
             f.write(str(self._soup))
 
@@ -132,6 +142,7 @@ class Turma:
         self._nome              : str = tags[2].get_text().strip()
         self._tipo_de_oferta    : str = tags[4].get_text().strip()
 
+        #FIXME: modulo é a quantidade total de vagas, não a carga horária
         _tem_modulo = (_mod := tags[3].get_text().strip()).isdecimal()
         self._modulo = int(_mod) if _tem_modulo else None
 
@@ -207,12 +218,48 @@ class ListaTurmas:
         self._soup: bs4.Tag|None = soup if soup.get('id') == "tabela-turmas" else soup.find(id="tabela-turmas")
         if self._soup is not None:
             self._turmas: list[Turma] = [Turma(tag) for tag in self._soup.tbody.find_all('tr')]
+            self.ano_semestre: str = self._soup.table.tbody.tr.get('data-anosemestre')
         else:
             self._turmas = []
+            self.ano_semestre = ''
 
 
     @property
     def turmas(self) -> list[Turma]: return self._turmas
+
+    @property
+    def filename_padrao(self) -> pathlib.Path:
+        """Retorna o nome de arquivo padrão para salvar o HTML desta lista de turmas."""
+        if self._soup is None:
+            return pathlib.Path('')
+
+        ano, semestre = self.ano_semestre[:4], self.ano_semestre[4]
+        return pathlib.Path(f"lista_turmas_{ano}_{semestre}.html")
+
+    # f"extracao/html/lista_turmas_{ano}_{semestre}_{pag:03}.html"
+
+    def pagina_atual(self) -> int:
+        if (total_de_paginas := self.num_paginas()) < 2:
+            return total_de_paginas
+
+        pagina_atual = self._soup.find('li', attrs={'class': 'page-item active'}).a.text.strip()
+        return int(pagina_atual)
+
+
+    def num_paginas(self) -> int:
+        """Retorna o número total de páginas de resultados desta lista de turmas."""
+        if self._soup is None:
+            return 0
+
+        # Se não tem os botões pras próximas páginas, retorna 1
+        if not (paginas := self._soup.find_all('li', attrs={'class': 'page-item'})):
+            return 1
+
+        # Tendo botões de página, identifica qual a última página de resultados
+        ultima_pagina: bs4.Tag = paginas[-1].a
+        # Pega o número da última página a partir do link
+        num_ultima_pagina: str = re.search(r'page=(\d+)', ultima_pagina['href']).group(1)
+        return int(num_ultima_pagina)
 
 
     def __add__(self, outra_lista: Self) -> Self:
