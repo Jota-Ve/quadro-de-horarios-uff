@@ -153,6 +153,7 @@ dmypy.json
 cython_debug/
 
 # Aquivos HTML/CSV salvos durante desenvolvimento
+extracao/*
 *.html
 *.csv
 

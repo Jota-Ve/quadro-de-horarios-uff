@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import datetime
 import logging
+import pathlib
 from typing import Iterable, Literal
 
 import aiohttp
@@ -72,12 +73,12 @@ async def main(args: argparse.Namespace):
     quadro = quadro_de_horarios.QuadroDeHorarios()
 
     # quadro.seleciona_localidade('Niterói')
-    if args.curso:
-        quadro.seleciona_vagas_para_curso(args.curso)
+    # if args.curso:
+    #     quadro.seleciona_vagas_para_curso(args.curso)
 
-    ESPERA: tuple[float, float] = (.01, 3.5)
-    # Limite de requisições assíncronas simultâneas
-    LIMITE = asyncio.Semaphore(50)
+    ESPERA: tuple[float, float] = (.1, 1.75)
+    QTD_MAXIMA_DE_REQUISICOES_SIMULTANEAS = 15
+    LIMITE = asyncio.Semaphore(QTD_MAXIMA_DE_REQUISICOES_SIMULTANEAS)
     # Cria um ClientTimeout sem limites
     TIMEOUT = aiohttp.ClientTimeout(total=None, connect=None, sock_connect=None, sock_read=None)
 
@@ -89,16 +90,21 @@ async def main(args: argparse.Namespace):
 
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
-        async with aiohttp.ClientSession(headers=headers, timeout=TIMEOUT) as session:
+        logging.getLogger('aiohttps').setLevel(logging.DEBUG)
+        conector = aiohttp.TCPConnector(limit=9999999, limit_per_host=9999999, timeout_ceil_threshold=9999999)
+        async with aiohttp.ClientSession(headers=headers, timeout=TIMEOUT, connector=conector) as session:
             scraper = requisicao.AsyncScraper(session, limite=LIMITE, espera_aleatoria=ESPERA)
             for ano, semestre in gera_semestres((2009, 1), (2025, 2)):
                 quadro.seleciona_semestre(ano, semestre)
                 logger.info(f"Pesquisando {ano} / {semestre}...")
-                tasks = []
+                tasks: list[asyncio.Task[lista_disciplinas.TurmaInfo | None]] = []
 
                 try:
+                    pag = 0
                     async for lista_turmas in quadro.async_pesquisa(scraper, ""):
-                        atualiza_disciplinas_turmas_e_horarios(lista_turmas, disciplinas=disciplinas, turmas=turmas, horarios=horarios)
+                        pag +=1
+                        lista_turmas.salvar_html(f"extracao/{ano}/html/listas_de_turmas" / lista_turmas.filename_padrao)
+                        # atualiza_disciplinas_turmas_e_horarios(lista_turmas, disciplinas=disciplinas, turmas=turmas, horarios=horarios)
 
                         # Cria e inicia as requisições assíncronas de todas as turmas da página/lista de turmas
                         tasks += [asyncio.create_task(tur.async_info(scraper)) for tur in lista_turmas.turmas]
@@ -107,34 +113,38 @@ async def main(args: argparse.Namespace):
                     for i, future in enumerate(asyncio.as_completed(tasks), start=1):
                         try:
                             info: lista_disciplinas.TurmaInfo|None = await future
+                            if info is None:
+                                logger.warning("Ignorando turma sem informações...")
+                                continue
+
                         except Exception:
                             # Ignora turmas que não possuem página de informação (erro http 5XX)
-                            logger.exception(f"Erro ao processar turma:")
-                            logger.warning(f"Ignorando turma com erro...")
+                            logger.exception("Erro ao processar turma:")
+                            logger.warning("Ignorando turma com erro...")
                             continue
 
+                        info.savar_html(f"extracao/{ano}/html/turmas" / info.filename_padrao)
                         logger.info(f"[{ano}-{semestre}] Processou {i}/{len(tasks)} turmas (Fora de ordem)")
                         # ignora turmas q nao possuem informações, como as de yoga de 2009/2
                         # ignora turmas sem vagas alocadas, como: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
                         if (info is None) or (not info.vagas):
                             continue
 
-                        cursos.update(vaga.curso for vaga in info.vagas)
-                        vagas.update(info.vagas)
+                        # cursos.update(vaga.curso for vaga in info.vagas)
+                        # vagas.update(info.vagas)
 
                 finally:
-                    for unfinished_task in [t for t in tasks if not t.done()]:
-                        logger.warning(f"Cancelando tarefa pendente... {unfinished_task}")
-                        unfinished_task.cancel()
+                    scraper.close_tasks(tasks)
 
         logging.info("Extração concluída com sucesso.")
     finally:
-        logging.info("Salvando resultados...")
-        extracao.salva_disciplinas(disciplinas, 'extracao/disciplinas.csv')
-        extracao.salva_turmas(turmas, 'extracao/turmas.csv')
-        extracao.salva_cursos(cursos, 'extracao/cursos.csv')
-        extracao.salva_horarios(horarios, 'extracao/horarios.csv', 'extracao/horarios_turmas.csv')
-        extracao.salva_vagas(vagas, 'extracao/vagas.csv')
+        pass
+        # logging.info("Salvando resultados...")
+        # extracao.salva_disciplinas(disciplinas, 'extracao/disciplinas.csv')
+        # extracao.salva_turmas(turmas, 'extracao/turmas.csv')
+        # extracao.salva_cursos(cursos, 'extracao/cursos.csv')
+        # extracao.salva_horarios(horarios, 'extracao/horarios.csv', 'extracao/horarios_turmas.csv')
+        # extracao.salva_vagas(vagas, 'extracao/vagas.csv')
 
 
 
