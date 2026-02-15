@@ -7,7 +7,7 @@ from typing import Any
 import aiohttp
 import bs4
 
-type T_tasks = Iterable[asyncio.Task[bs4.BeautifulSoup]]
+type T_tasks = Iterable[asyncio.Task[Any]]
 
 class AsyncScraper:
     def __init__( self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float] | None = (0.05, 0.75)):
@@ -31,7 +31,7 @@ class AsyncScraper:
                     response.raise_for_status()
                     html = await response.text()
             except Exception as e:
-                logging.error(f"Erro ao requisitar {url}: {e}")
+                logging.error(f"Erro ao requisitar {constroi_url(url, params or {})!r}: {e}")
                 raise
 
         # espera aleatória após a requisição
@@ -46,3 +46,9 @@ class AsyncScraper:
         """Retorna o conteúdo como BeautifulSoup, com opção de SoupStrainer."""
         html = await self.fetch_html(url, params=params)
         return bs4.BeautifulSoup(html, "lxml", parse_only=strainer)
+
+
+def constroi_url(url_base: str, parametros: dict[str, Any]) -> str:
+    if params := ('&'.join(f'{k}={v}' for k,v in parametros.items() if v)):
+        return url_base + '/?' + params
+    return url_base
