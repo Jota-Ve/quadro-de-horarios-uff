@@ -19,6 +19,7 @@
             "request": "launch",
             "program": "src/main.py",
             "console": "integratedTerminal",
+            "justMyCode": false,
             "args": ["-debug"]
         },
         {
