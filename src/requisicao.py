@@ -10,7 +10,7 @@ import bs4
 type T_tasks = Iterable[asyncio.Task[Any]]
 
 class AsyncScraper:
-    def __init__( self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float] | None = (0.05, 0.75)):
+    def __init__( self, session: aiohttp.ClientSession, limite: asyncio.Semaphore, espera_aleatoria: tuple[float, float] | None = (0.1, 1.75)):
         self.session = session
         self.limite = limite
         self.espera_aleatoria = espera_aleatoria
@@ -23,7 +23,7 @@ class AsyncScraper:
         logging.warning(f'Cancelou {qtd_cancelada} tarefas pendentes.')
 
 
-    async def fetch_html(self,url: str,params: dict[str, Any] | None = None) -> str:
+    async def fetch_html(self, url: str, params: dict[str, Any] | None = None) -> str:
         """Faz requisição HTTP com limite de concorrência e espera aleatória."""
         async with self.limite:
             try:
