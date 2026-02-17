@@ -68,6 +68,10 @@ def atualiza_disciplinas_turmas_e_horarios(
         horarios.setdefault(horario, set()).update(turmas_)
 
 
+
+def inicia_estracao_turma_info(scraper: requisicao.AsyncScraper, ano: int, semestre: Literal[1, 2], turmas: list[lista_disciplinas.Turma]) -> list[asyncio.Task[lista_disciplinas.TurmaInfo | None]]:
+    return [asyncio.create_task(tur.async_info(scraper)) for tur in turmas if not any(pathlib.Path(f"extracao/{ano}/semestre_{semestre}/html/turmas").glob(f'*{tur.id}.html'))]
+
 async def main(args: argparse.Namespace):
     logger.debug(f"Argumentos: {args}")
     quadro = quadro_de_horarios.QuadroDeHorarios()
@@ -76,8 +80,8 @@ async def main(args: argparse.Namespace):
     # if args.curso:
     #     quadro.seleciona_vagas_para_curso(args.curso)
 
-    ESPERA: tuple[float, float] = (.1, 1.75)
-    QTD_MAXIMA_DE_REQUISICOES_SIMULTANEAS = 15
+    ESPERA: tuple[float, float] = (.15, 2)
+    QTD_MAXIMA_DE_REQUISICOES_SIMULTANEAS = 10
     LIMITE = asyncio.Semaphore(QTD_MAXIMA_DE_REQUISICOES_SIMULTANEAS)
     # Cria um ClientTimeout sem limites
     TIMEOUT = aiohttp.ClientTimeout(total=None, connect=None, sock_connect=None, sock_read=None)
@@ -89,45 +93,39 @@ async def main(args: argparse.Namespace):
     vagas       : set[lista_disciplinas.T_Vagas] = set()
 
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        logging.getLogger('aiohttps').setLevel(logging.DEBUG)
-        conector = aiohttp.TCPConnector(limit=9999999, limit_per_host=9999999, timeout_ceil_threshold=9999999)
-        async with aiohttp.ClientSession(headers=headers, timeout=TIMEOUT, connector=conector) as session:
+        # headers = {"User-Agent": "Mozilla/5.0"}
+        # conector = aiohttp.TCPConnector(limit=9999999, limit_per_host=9999999, timeout_ceil_threshold=9999999)
+        async with aiohttp.ClientSession(timeout=TIMEOUT) as session:
             scraper = requisicao.AsyncScraper(session, limite=LIMITE, espera_aleatoria=ESPERA)
-            for ano, semestre in gera_semestres((2009, 1), (2025, 2)):
+            for ano, semestre in gera_semestres((2025, 1), (2026, 1)):
                 quadro.seleciona_semestre(ano, semestre)
                 logger.info(f"Pesquisando {ano} / {semestre}...")
                 tasks: list[asyncio.Task[lista_disciplinas.TurmaInfo | None]] = []
 
                 try:
-                    pag = 0
                     async for lista_turmas in quadro.async_pesquisa(scraper, ""):
-                        pag +=1
-                        lista_turmas.salvar_html(f"extracao/{ano}/html/listas_de_turmas" / lista_turmas.filename_padrao)
+                        lista_turmas.salvar_html(f"extracao/{ano}/semestre_{semestre}/html/listas_de_turmas" / lista_turmas.filename_padrao)
                         # atualiza_disciplinas_turmas_e_horarios(lista_turmas, disciplinas=disciplinas, turmas=turmas, horarios=horarios)
-
-                        # Cria e inicia as requisições assíncronas de todas as turmas da página/lista de turmas
-                        tasks += [asyncio.create_task(tur.async_info(scraper)) for tur in lista_turmas.turmas]
+                        tasks += inicia_estracao_turma_info(scraper, ano, semestre, lista_turmas.turmas)
 
                     # Processa as requisições e extrai informações de vagas e horários de forma assíncrona
                     for i, future in enumerate(asyncio.as_completed(tasks), start=1):
                         try:
-                            info: lista_disciplinas.TurmaInfo|None = await future
-                            if info is None:
-                                logger.warning("Ignorando turma sem informações...")
-                                continue
-
+                            info = await future
                         except Exception:
                             # Ignora turmas que não possuem página de informação (erro http 5XX)
                             logger.exception("Erro ao processar turma:")
                             logger.warning("Ignorando turma com erro...")
                             continue
 
-                        info.savar_html(f"extracao/{ano}/html/turmas" / info.filename_padrao)
+                        if info is None:
+                            logger.warning("Ignorando turma sem informações...") # como as de yoga de 2009/2
+                            continue
+
+                        info.savar_html(f"extracao/{ano}/semestre_{semestre}/html/turmas" / info.filename_padrao)
                         logger.info(f"[{ano}-{semestre}] Processou {i}/{len(tasks)} turmas (Fora de ordem)")
-                        # ignora turmas q nao possuem informações, como as de yoga de 2009/2
-                        # ignora turmas sem vagas alocadas, como: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
-                        if (info is None) or (not info.vagas):
+                        
+                        if not info.vagas: # Exemplo: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
                             continue
 
                         # cursos.update(vaga.curso for vaga in info.vagas)
@@ -139,6 +137,7 @@ async def main(args: argparse.Namespace):
         logging.info("Extração concluída com sucesso.")
     finally:
         pass
+
         # logging.info("Salvando resultados...")
         # extracao.salva_disciplinas(disciplinas, 'extracao/disciplinas.csv')
         # extracao.salva_turmas(turmas, 'extracao/turmas.csv')
