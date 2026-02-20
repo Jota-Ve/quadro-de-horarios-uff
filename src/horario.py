@@ -17,6 +17,8 @@ class DiaDaSemana(enum.StrEnum):
 class Horario(abc.Container[str]):
     __slots__ = ('__horario', '__inicio', '__fim')
 
+    RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
+
     # Formato HH:MM-HH:MM, 24h
     RGXP_HHMM_HHMM = re.compile(r'^(([01]\d|2[0-3]):([0-5]\d))-(([01]\d|2[0-3]):([0-5]\d))$')
 
@@ -27,17 +29,17 @@ class Horario(abc.Container[str]):
 
 
     def __init__(self, horario: str) -> None:
-        # super().__init__()
         if not self.valido(horario):
             raise ValueError(f"{horario!r} não está no padrão esperado: {self.RGXP_HHMM_HHMM.pattern!r}")
 
         self.__horario = horario
-        self.__inicio  = horario[:5]
-        self.__fim     = horario[6:]
+        self.__inicio = horario[:5]
+        self.__fim = horario[6:]
 
 
     def __str__(self) -> str:
         return self.__horario
+
 
     def __repr__(self) -> str:
         return f'{self.__class__.__qualname__}({self.__horario!r})'
@@ -51,6 +53,7 @@ class Horario(abc.Container[str]):
             return self.__inicio <= inicio <= fim <= self.__fim
 
         return False
+
 
     @classmethod
     def valido(cls, horario: str) -> bool:

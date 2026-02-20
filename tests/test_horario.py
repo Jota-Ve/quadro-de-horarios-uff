@@ -1,7 +1,9 @@
 from src.horario import Horario
-
+import pytest
 
 class TestHorario:
+
+    # @pytest.p
     def test_valido_passa(self):
         assert Horario.valido("08:00-10:00")
 

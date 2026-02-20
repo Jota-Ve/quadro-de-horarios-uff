@@ -163,6 +163,7 @@ src/teste.py
 # Arquivos de Dump do Banco de Dados
 *.sql
 *.zip
+*.7z
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

@@ -229,7 +229,7 @@ class ListaTurmas:
     """Representa uma lista de turmas de disciplinas da UFF extraídas de uma tabela HTML.
     Permite acessar as turmas, somar listas e filtrar por horários.
     """
-    DEFAULT_STRAINER = bs4.SoupStrainer(name="div", id="lista-turmas")
+    DEFAULT_STRAINER = bs4.filter.SoupStrainer(name="div", id="lista-turmas")
 
     def __init__(self, soup: bs4.Tag):
         self._soup: bs4.Tag|None = soup if soup.get('id') == "lista-turmas" else soup.find(id="lista-turmas")

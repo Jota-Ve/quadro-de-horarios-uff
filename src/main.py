@@ -80,8 +80,8 @@ async def main(args: argparse.Namespace):
     # if args.curso:
     #     quadro.seleciona_vagas_para_curso(args.curso)
 
-    ESPERA: tuple[float, float] = (.15, 2)
-    QTD_MAXIMA_DE_REQUISICOES_SIMULTANEAS = 10
+    ESPERA: tuple[float, float] = (.1, 1)
+    QTD_MAXIMA_DE_REQUISICOES_SIMULTANEAS = 15
     LIMITE = asyncio.Semaphore(QTD_MAXIMA_DE_REQUISICOES_SIMULTANEAS)
     # Cria um ClientTimeout sem limites
     TIMEOUT = aiohttp.ClientTimeout(total=None, connect=None, sock_connect=None, sock_read=None)
@@ -97,7 +97,7 @@ async def main(args: argparse.Namespace):
         # conector = aiohttp.TCPConnector(limit=9999999, limit_per_host=9999999, timeout_ceil_threshold=9999999)
         async with aiohttp.ClientSession(timeout=TIMEOUT) as session:
             scraper = requisicao.AsyncScraper(session, limite=LIMITE, espera_aleatoria=ESPERA)
-            for ano, semestre in gera_semestres((2025, 1), (2026, 1)):
+            for ano, semestre in gera_semestres((2009, 1), (2026, 1)):
                 quadro.seleciona_semestre(ano, semestre)
                 logger.info(f"Pesquisando {ano} / {semestre}...")
                 tasks: list[asyncio.Task[lista_disciplinas.TurmaInfo | None]] = []
@@ -124,7 +124,7 @@ async def main(args: argparse.Namespace):
 
                         info.savar_html(f"extracao/{ano}/semestre_{semestre}/html/turmas" / info.filename_padrao)
                         logger.info(f"[{ano}-{semestre}] Processou {i}/{len(tasks)} turmas (Fora de ordem)")
-                        
+
                         if not info.vagas: # Exemplo: https://app.uff.br/graduacao/quadrodehorarios/turmas/100000019624
                             continue
 
