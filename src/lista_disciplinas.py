@@ -167,9 +167,12 @@ class Turma:
         RGXP_HORARIO = re.compile(r'^\d\d:\d\d-\d\d:\d\d')
         FILTRO_DIAS_COM_HORARIO = {'text': RGXP_HORARIO, 'attrs': {'class': list(horario.DiaDaSemana)}}
 
-        for tag_dia in self._soup.find_all(**FILTRO_DIAS_COM_HORARIO):
-            self._horario[horario.DiaDaSemana(tag_dia['class'][0])] = [horario.Horario(h) for h in tag_dia.get_text().split(',')]
-
+        for tag_dia in self._soup.find_all(kwargs=FILTRO_DIAS_COM_HORARIO):
+            try:
+                self._horario[horario.DiaDaSemana(tag_dia['class'][0])] = [horario.Horario(h) for h in tag_dia.get_text().split(',')]
+            except ValueError:
+                logging.critical(f"Não conseguiu interpretar o horário a partir da turma {self._id} em {self._url_info!r}", exc_info=True)
+                raise
 
     #region Getters
     @property

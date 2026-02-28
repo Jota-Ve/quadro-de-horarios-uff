@@ -18,9 +18,11 @@ class AsyncScraper:
     @staticmethod
     def close_tasks(tasks: T_tasks) -> None:
         """Cancela todas as tarefas pendentes em uma lista de tarefas."""
-        logging.warning("Cancelando tarefas pendentes...")
-        qtd_cancelada = sum(task.cancel() for task in tasks)
-        logging.warning(f'Cancelou {qtd_cancelada} tarefas pendentes.')
+        logging.debug("Cancelando tarefas pendentes...")
+        if qtd_cancelada := sum(task.cancel() for task in tasks):
+            logging.warning(f'Cancelou {qtd_cancelada} tarefas pendentes.')
+        else:
+            logging.debug("Nenhuma tarefa pendente para cancelar.")
 
 
     async def fetch_html(self, url: str, params: dict[str, Any] | None = None) -> str:
