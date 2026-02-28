@@ -5,13 +5,23 @@ from hypothesis import strategies as st
 from src.horario import Horario
 
 
+def map_tupla_para_horarios(HHMM_HHMM: tuple[int, int, int, int]) -> str:
+    """Converte uma tupla de 4 inteiros (HH, MM, HH, MM) em uma string no formato HH:MM-HH:MM"""
+    return f"{HHMM_HHMM[0]:02d}:{HHMM_HHMM[1]:02d}-{HHMM_HHMM[2]:02d}:{HHMM_HHMM[3]:02d}"
+
+
 class TestHorario:
 
     # estratégia que gera qualquer intervalo HH:MM-HH:MM
     horarios = st.tuples(
         st.integers(0, 23), st.integers(0, 59),
         st.integers(0, 23), st.integers(0, 59),
-    ).map(lambda hh_mm: f"{hh_mm[0]:02d}:{hh_mm[1]:02d}-{hh_mm[2]:02d}:{hh_mm[3]:02d}")
+    ).map(map_tupla_para_horarios)
+
+    horarios_8h_as_10h59 = st.tuples(
+        st.integers(8, 9), st.integers(0, 59),  # início candidato entre 08:00 e 09:59
+        st.integers(8, 10), st.integers(0, 59), # fim candidato entre 08:00 e 10:59
+    ).map(map_tupla_para_horarios)
 
 
     @pytest.mark.parametrize("horario", [
@@ -74,12 +84,20 @@ class TestHorario:
     @given(horarios)
     def test_instanciar_horario_invalido_deve_falhar(self, horario: str):
         if not Horario.valido(horario):
-            # propriedade observável: se inválido, instanciar falha
             assert pytest.raises(ValueError, lambda: Horario(horario))
 
 
-    def test_contem(self):
-        h = Horario("08:00-10:00")
-        assert "08:30-09:30" in h
-        assert "07:30-09:30" not in h
-        assert "08:30-10:30" not in h
+    @given(horarios_8h_as_10h59)
+    def test_contem_entre_8h_e_10h59(self, horario: str):
+        print('horario gerado:', horario)
+        if Horario.valido(horario):
+            _8h_as_10h = Horario("08:00-10:00")
+            inicio, fim = horario.split("-")
+            inicio_hh, inicio_mm = map(int, inicio.split(":"))
+            fim_hh, fim_mm       = map(int, fim.split(":"))
+
+            if (horario in _8h_as_10h):
+                assert (inicio_hh, inicio_mm) >= (8, 0)
+                assert (fim_hh,    fim_mm)    <= (10, 0)
+            else:
+                assert (inicio_hh, inicio_mm) < (8, 0) or (10, 0) < (fim_hh, fim_mm)
