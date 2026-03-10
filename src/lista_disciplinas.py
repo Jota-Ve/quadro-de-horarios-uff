@@ -10,9 +10,7 @@ from typing import Self
 import bs4
 import requests
 
-import curso
-import horario
-import requisicao
+from src import curso, horario, requisicao
 
 logger = logging.getLogger(__name__)
 

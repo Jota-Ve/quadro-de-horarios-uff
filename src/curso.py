@@ -1,5 +1,5 @@
-import re
 import dataclasses
+import re
 from typing import Self
 
 

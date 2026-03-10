@@ -3,8 +3,8 @@ import argparse
 import horario
 
 
-def filtra_horario(args) -> dict[horario.DiaDaSemana, list[horario.Horario]]:
-    horarios = {}
+def filtra_horario(args: argparse.Namespace) -> dict[horario.DiaDaSemana, list[horario.Horario]]:
+    horarios: dict[horario.DiaDaSemana, list[horario.Horario]] = {}
 
     if args.seg: horarios[horario.DiaDaSemana.SEGUNDA] = args.seg
     if args.ter: horarios[horario.DiaDaSemana.TERCA] = args.ter

@@ -3,16 +3,12 @@ import asyncio
 import datetime
 import logging
 import pathlib
-from typing import Iterable, Literal
+from collections.abc import Iterable
+from typing import Literal
 
 import aiohttp
 
-import cli
-import curso
-import extracao
-import lista_disciplinas
-import quadro_de_horarios
-import requisicao
+from src import cli, curso, extracao, lista_disciplinas, quadro_de_horarios, requisicao
 
 logging.getLogger('selenium').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)

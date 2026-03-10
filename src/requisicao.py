@@ -1,7 +1,7 @@
 import asyncio
-from collections.abc import Iterable
 import logging
 import random
+from collections.abc import Iterable
 from typing import Any
 
 import aiohttp

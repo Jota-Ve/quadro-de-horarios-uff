@@ -1,10 +1,11 @@
 import itertools
 import logging
-from pathlib import Path
 import time
-from typing import Iterable, Sequence
-import relatorio
+from collections.abc import Iterable, Sequence
 from datetime import datetime
+from pathlib import Path
+
+from src import relatorio
 
 logger = logging.getLogger(__name__)
 

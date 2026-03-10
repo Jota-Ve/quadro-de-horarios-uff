@@ -3,14 +3,14 @@ import asyncio
 import logging
 import re
 import time
-from typing import Iterator, Literal
+from collections.abc import Iterator
+from typing import Literal
 
-import aiohttp
 import bs4
 import requests
 
-import requisicao
-from lista_disciplinas import ListaTurmas
+from src import requisicao
+from src.lista_disciplinas import ListaTurmas
 
 logger = logging.getLogger(__name__)
 

@@ -8,11 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
-import curso
-import horario
-import lista_disciplinas
-import relatorio
-from lista_disciplinas import ListaTurmas
+from src import curso, horario, lista_disciplinas, relatorio
+from src.lista_disciplinas import ListaTurmas
 
 logger = logging.getLogger(__name__)
 
