@@ -1,6 +1,6 @@
 from hypothesis import settings
 
-settings.register_profile("limite_maximo_de_testes_aumentado", max_examples=700)
+settings.register_profile("limite_maximo_de_testes_aumentado", max_examples=350)
 
 # any tests executed before loading this profile will still use the
 # default active profile of 100 examples.

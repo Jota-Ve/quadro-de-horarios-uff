@@ -18,12 +18,13 @@ logger = logging.getLogger(__name__)
 class QuadroDeHorarios():
     """Classe para a busca de disciplinas utilizando os filtros disponíveis"""
 
-    __dominio = r'https://app.uff.br'
-    __caminho = r'/graduacao/quadrodehorarios'
     _SESSION = requests.Session()
+    __URL_DOMINIO = r'https://app.uff.br'
+    __URL_CAMINHO = r'/graduacao/quadrodehorarios'
+    URL_PAGINA_INICIAL = __URL_DOMINIO + __URL_CAMINHO
 
     def __init__(self):
-        self._soup = bs4.BeautifulSoup(requests.get(self.pagina_inicial).text, features='lxml')
+        self._soup = bs4.BeautifulSoup(requests.get(self.URL_PAGINA_INICIAL).text, features='lxml')
 
         self._parametros = {
             # 'q[disciplina_cod_departamento_eq]': departamento,
@@ -34,8 +35,6 @@ class QuadroDeHorarios():
             # 'q[idturmamodalidade_eq]': turma_modalidade
         }
 
-    @property
-    def pagina_inicial(self): return self.__dominio + self.__caminho
 
     #TODO: Getter de semestres possíveis
     def seleciona_semestre(self, ano: int, semestre: Literal[1, 2]):
@@ -91,14 +90,15 @@ class QuadroDeHorarios():
             if (prox_pag := resposta_bs4.find('a', attrs={'rel': 'next', 'class': 'page-link'})) is None:
                 return None
 
-            if espera: time.sleep(espera)
-            link_prox_pag = self.__dominio + prox_pag['href']
+            if espera:
+                time.sleep(espera)
+            link_prox_pag = f"{self.__URL_DOMINIO}{prox_pag['href']}"
             return self._SESSION.get(link_prox_pag)
 
 
         self._parametros['utf8'] = '✓'
         self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_disciplina
-        resposta = self._SESSION.get(self.pagina_inicial, params=self._parametros)
+        resposta = self._SESSION.get(self.URL_PAGINA_INICIAL, params=self._parametros)
         yield ListaTurmas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
         # Continua requisitando e concatenando as disciplinas enquanto houver próxima página de resultados
@@ -132,7 +132,7 @@ class QuadroDeHorarios():
             ano_semestre = f'[{ano_semestre[:-1]}-{ano_semestre[-1]}] '
 
         logger.info(f"{ano_semestre}Requisitando 1º página de resultados")
-        soup_pagina = await scraper.fetch_soup(self.pagina_inicial, params=self._parametros, strainer=strainer)
+        soup_pagina = await scraper.fetch_soup(self.URL_PAGINA_INICIAL, params=self._parametros, strainer=strainer)
         yield ListaTurmas(soup_pagina)
 
         # Se não tem os botões pras próximas páginas, retorna a atual
@@ -148,8 +148,8 @@ class QuadroDeHorarios():
             # Cria e inicia as tarefas de requisição assíncrona de cada próxima página
             for pagina in range(2, int(num_ultima_pagina) + 1):
                 parametros_com_pagina = (self._parametros | {'page': pagina})
-                task_name = f'{self.pagina_inicial}/?' + '&'.join(f'{k}={v}' for k,v in parametros_com_pagina.items() if v)
-                tasks.append(asyncio.create_task(scraper.fetch_soup(self.pagina_inicial, parametros_com_pagina, strainer=strainer), name=task_name))
+                task_name = f'{self.URL_PAGINA_INICIAL}/?' + '&'.join(f'{k}={v}' for k,v in parametros_com_pagina.items() if v)
+                tasks.append(asyncio.create_task(scraper.fetch_soup(self.URL_PAGINA_INICIAL, parametros_com_pagina, strainer=strainer), name=task_name))
 
             # Requisita de forma assíncrona cada uma e adiciona em resultados
             for pagina, future in enumerate(asyncio.as_completed(tasks), start=2):
