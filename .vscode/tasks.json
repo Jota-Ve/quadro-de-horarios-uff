@@ -1,0 +1,63 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "🧪 Rodar Testes",
+			"type": "shell",
+			"options": {
+				"cwd": "${workspaceFolder}/tests"
+			},
+			"command": "uv",
+			"args": [
+				"run",
+				"pytest"
+			],
+			"problemMatcher": [
+				"$python"
+			],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "dedicated",
+				"preserveTerminalName": true,
+				"showReuseMessage": false
+			}
+		},
+		{
+			"label": "🧪📊 Rodar Testes com Cobertura",
+			"type": "shell",
+			"options": {
+				"cwd": "${workspaceFolder}/tests"
+			},
+			"command": "uv",
+			"args": [
+				"run",
+				"pytest",
+				"--cov",
+				"--cov-report=term-missing",
+				"--cov-report=xml:coverage.xml",
+				"--cov-report=html"
+			],
+			"problemMatcher": [
+				"$python"
+			],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "dedicated",
+				"preserveTerminalName": true,
+				"showReuseMessage": false
+			}
+		}
+	]
+}
