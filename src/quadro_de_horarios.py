@@ -83,8 +83,9 @@ class QuadroDeHorarios():
         Yields:
             Classe que contém dados de todas as turmas encontradas
         """
+        if espera:
+            time.sleep(espera)
 
-        if espera: time.sleep(espera)
         def _proxima_pagina():
             """Retorna a próxima página de resultados, se existir"""
             if (prox_pag := resposta_bs4.find('a', attrs={'rel': 'next', 'class': 'page-link'})) is None:
