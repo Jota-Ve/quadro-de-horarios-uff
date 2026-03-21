@@ -3,7 +3,7 @@ import asyncio
 import logging
 import re
 import time
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Literal
 
 import bs4
@@ -26,7 +26,7 @@ class QuadroDeHorarios():
     def __init__(self):
         self._soup = bs4.BeautifulSoup(requests.get(self.URL_PAGINA_INICIAL).text, features='lxml')
 
-        self._parametros = {
+        self._parametros: dict[str, str] = {
             # 'q[disciplina_cod_departamento_eq]': departamento,
             # 'q[idturno_eq]': turno,
             # 'q[por_professor_eq]': professor,
@@ -37,13 +37,13 @@ class QuadroDeHorarios():
 
 
     #TODO: Getter de semestres possíveis
-    def seleciona_semestre(self, ano: int, semestre: Literal[1, 2]):
+    def seleciona_semestre(self, ano: int, semestre: Literal[1, 2]) -> None:
         """Filtro de ano e semestre das turmas"""
         self._parametros['q[anosemestre_eq]'] = f'{ano}{semestre}'
 
 
     #TODO Talvez generalizar essas funções de filtro
-    def seleciona_localidade(self, local: str):
+    def seleciona_localidade(self, local: str) -> None:
         """Filtro de turmas com vagas para o curso informado"""
         lista_locais = self._soup.find(id="q_idlocalidade_eq")
         tag_local = lista_locais.find(text=re.compile(f'^{local}$', re.RegexFlag.IGNORECASE)) #type: ignore
@@ -54,7 +54,7 @@ class QuadroDeHorarios():
         self._parametros['q[idlocalidade_eq]'] = cod_local
 
 
-    def seleciona_vagas_para_curso(self, curso: str):
+    def seleciona_vagas_para_curso(self, curso: str) -> None:
         """Filtro de turmas com vagas para o curso informado"""
         lista_vagas_curso = self._soup.find(id="q_vagas_turma_curso_idcurso_eq")
         tag_curso = lista_vagas_curso.find(text=re.compile(f'^{curso}$', re.RegexFlag.IGNORECASE)) #type: ignore
@@ -67,8 +67,14 @@ class QuadroDeHorarios():
 
     def cursos_disponiveis(self) -> dict[int, str]:
         """Retorna os cursos disponíveis para filtro"""
-        lista_cursos = self._soup.find(id="q_vagas_turma_curso_idcurso_eq")
-        return {int(option['value']): option.get_text().strip() for option in lista_cursos.find_all('option') if option['value']}
+        if not (cursos := self._soup.find(id="q_vagas_turma_curso_idcurso_eq")):
+            return {}
+
+        return {
+            int(opt_val) : option.get_text().strip()
+            for option in cursos.find_all('option')
+            if isinstance(opt_val:=option.get('value'), str)
+        }
 
 
     def pesquisa(self, cod_ou_nome_disciplina: str="", espera: float=1) -> Iterator[ListaTurmas]:
@@ -110,7 +116,7 @@ class QuadroDeHorarios():
             yield ListaTurmas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
 
-    async def async_pesquisa(self, scraper: requisicao.AsyncScraper, cod_ou_nome_disciplina: str="", strainer: bs4.SoupStrainer|None = ListaTurmas.DEFAULT_STRAINER):
+    async def async_pesquisa(self, scraper: requisicao.AsyncScraper, cod_ou_nome_disciplina: str="", strainer: bs4.filter.SoupStrainer|None = ListaTurmas.DEFAULT_STRAINER) -> AsyncIterator[ListaTurmas]:
         """Pesquisa código ou nome da turma informado, levando em conta os
         possíveis filtros configurados anteriormente.
 
@@ -141,14 +147,19 @@ class QuadroDeHorarios():
             return
 
         # Identifica qual a última página de resultados
-        botao_ultima_pagina: bs4.Tag = soup_paginas[-1].a
-        num_ultima_pagina = re.search(r'page=(\d+)', botao_ultima_pagina.attrs['href']).group(1)
-        tasks: requisicao.T_tasks = []
+        if not (botao_ultima_pagina := soup_paginas[-1].a):
+            return
+
+        if not (match := re.search(r'page=(\d+)', str(botao_ultima_pagina.get('href')))):
+            return
+
+        num_ultima_pagina = int(match.group(1))
+        tasks: list[asyncio.Task[bs4.BeautifulSoup]] = []
 
         try:
             # Cria e inicia as tarefas de requisição assíncrona de cada próxima página
             for pagina in range(2, int(num_ultima_pagina) + 1):
-                parametros_com_pagina = (self._parametros | {'page': pagina})
+                parametros_com_pagina: dict[str, str | int] = (self._parametros | {'page': pagina})
                 task_name = f'{self.URL_PAGINA_INICIAL}/?' + '&'.join(f'{k}={v}' for k,v in parametros_com_pagina.items() if v)
                 tasks.append(asyncio.create_task(scraper.fetch_soup(self.URL_PAGINA_INICIAL, parametros_com_pagina, strainer=strainer), name=task_name))
 

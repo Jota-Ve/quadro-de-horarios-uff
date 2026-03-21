@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 def salva_reprovados(rel: relatorio.Relatorios, departamentos: Iterable[str]='', arquivo: str|Path='extracao/reprovados.csv', anos: Sequence[int]|None=None):
-    if anos is None: anos = range(2015, datetime.today().year)
-    if not departamentos: departamentos = rel.lista_departamentos()
+    if anos is None:
+        anos = range(2015, datetime.today().year)
+    if not departamentos:
+        departamentos = rel.lista_departamentos()
 
     # with open(arquivo, 'w', encoding="utf-8") as f:
         # Cabeçalho
@@ -89,7 +91,7 @@ def extrai_turmas(*listas_turmas: ListaTurmas):
     for lista in listas_turmas:
         for disc in lista.turmas:
             ano, semestre = map(int, [disc.ano_semestre[:4], disc.ano_semestre[4]])
-            turmas[disc._id] = (disc.nome, disc.tipo_de_oferta, disc.modulo, ano, semestre, disc.codigo_disciplina, None)
+            turmas[disc.id] = (disc.nome, disc.tipo_de_oferta, disc.modulo, ano, semestre, disc.codigo_disciplina, None)
 
     return turmas
 

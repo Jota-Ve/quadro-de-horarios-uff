@@ -44,7 +44,7 @@ class AsyncScraper:
         return html
 
 
-    async def fetch_soup(self, url: str, params: dict[str, Any] | None = None, strainer: bs4.SoupStrainer | None = None) -> bs4.BeautifulSoup:
+    async def fetch_soup(self, url: str, params: dict[str, Any] | None = None, strainer: bs4.filter.SoupStrainer | None = None) -> bs4.BeautifulSoup:
         """Retorna o conteúdo como BeautifulSoup, com opção de SoupStrainer."""
         html = await self.fetch_html(url, params=params)
         return bs4.BeautifulSoup(html, "lxml", parse_only=strainer)
