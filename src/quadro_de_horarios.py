@@ -4,6 +4,7 @@ import logging
 import re
 import time
 from collections.abc import AsyncIterator, Iterator
+from dataclasses import dataclass
 from typing import Literal
 
 import bs4
@@ -14,17 +15,35 @@ from src.lista_disciplinas import ListaTurmas
 
 logger = logging.getLogger(__name__)
 
+@dataclass
+class _ParametrosDePesquisa:
+    departamento:     str=''
+    turno:            str=''
+    professor:        str=''
+    localidade:       str=''
+    curso_ferias:     str=''
+    turma_modalidade: str=''
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            'q[disciplina_cod_departamento_eq]': self.departamento,
+            'q[idturno_eq]': self.turno,
+            'q[por_professor_eq]': self.professor,
+            'q[idlocalidade_eq]': self.localidade,
+            'q[curso_ferias_eq]': self.curso_ferias,
+            'q[idturmamodalidade_eq]': self.turma_modalidade
+        }
 
 class QuadroDeHorarios():
     """Classe para a busca de disciplinas utilizando os filtros disponíveis"""
 
-    _SESSION = requests.Session()
     __URL_DOMINIO = r'https://app.uff.br'
     __URL_CAMINHO = r'/graduacao/quadrodehorarios'
     URL_PAGINA_INICIAL = __URL_DOMINIO + __URL_CAMINHO
 
-    def __init__(self):
-        self._soup = bs4.BeautifulSoup(requests.get(self.URL_PAGINA_INICIAL).text, features='lxml')
+    def __init__(self, session: requests.Session | None = None) -> None:
+        self._session = session or requests.Session()
+        self._soup = bs4.BeautifulSoup(self._session.get(self.URL_PAGINA_INICIAL).text, features='lxml')
 
         self._parametros: dict[str, str] = {
             # 'q[disciplina_cod_departamento_eq]': departamento,
@@ -71,9 +90,8 @@ class QuadroDeHorarios():
             return {}
 
         return {
-            int(opt_val) : option.get_text().strip()
-            for option in cursos.find_all('option')
-            if isinstance(opt_val:=option.get('value'), str)
+            int(str(opt['value'])) : opt.get_text().strip()
+            for opt in cursos.find_all('option', value=lambda v: v != '')
         }
 
 
@@ -100,12 +118,12 @@ class QuadroDeHorarios():
             if espera:
                 time.sleep(espera)
             link_prox_pag = f"{self.__URL_DOMINIO}{prox_pag['href']}"
-            return self._SESSION.get(link_prox_pag)
+            return self._session.get(link_prox_pag)
 
 
         self._parametros['utf8'] = '✓'
         self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_disciplina
-        resposta = self._SESSION.get(self.URL_PAGINA_INICIAL, params=self._parametros)
+        resposta = self._session.get(self.URL_PAGINA_INICIAL, params=self._parametros)
         yield ListaTurmas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
         # Continua requisitando e concatenando as disciplinas enquanto houver próxima página de resultados
