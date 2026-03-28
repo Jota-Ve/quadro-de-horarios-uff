@@ -146,7 +146,7 @@ class Turma:
 
     _SESSION = requests.Session()
 
-    def __init__(self, soup: bs4.BeautifulSoup) -> None:
+    def __init__(self, soup: bs4.Tag) -> None:
         self._soup = soup
         tags = self._soup.find_all('td')
         self._url_info          : str = r'https://app.uff.br' + tags[0].contents[0]['href']
@@ -234,13 +234,29 @@ class ListaTurmas:
 
     def __init__(self, soup: bs4.Tag):
         self._soup: bs4.Tag|None = soup if soup.get('id') == "lista-turmas" else soup.find(id="lista-turmas")
-        if self._soup is not None:
-            tabela = self._soup.find(id='tabela-turmas')
-            self._turmas: list[Turma] = [Turma(tag) for tag in tabela.tbody.find_all('tr')]
-            self.ano_semestre: str = tabela.tbody.tr.get('data-anosemestre')
-        else:
+
+        if self._soup is None:
             self._turmas = []
             self.ano_semestre = ''
+            return
+
+        if (tabela := self._soup.find(id='tabela-turmas')) is None:
+            self._turmas = []
+            self.ano_semestre = ''
+            return
+
+        if tabela.tbody is None:
+            self._turmas = []
+            self.ano_semestre = ''
+            return
+
+        if tabela.tbody.tr is None:
+            self._turmas = []
+            self.ano_semestre = ''
+            return
+
+        self._turmas: list[Turma] = [Turma(tag) for tag in tabela.tbody.find_all('tr')]
+        self.ano_semestre: str = str(tabela.tbody.tr.get('data-anosemestre')).strip()
 
 
     @property
@@ -255,6 +271,15 @@ class ListaTurmas:
         ano, semestre = self.ano_semestre[:4], self.ano_semestre[4]
         pag = self.pagina_atual()
         return pathlib.Path(f"lista_turmas_{ano}_{semestre}_{pag:03}.html")
+
+
+    def __bool__(self) -> bool:
+        return bool(self._turmas)
+
+
+    def vazia(self) -> bool:
+        """Retorna True se esta lista de turmas estiver vazia, ou seja, não tiver nenhuma turma."""
+        return bool(self)
 
 
     def pagina_atual(self) -> int:
