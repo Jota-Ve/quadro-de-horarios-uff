@@ -1,3 +1,4 @@
+import time
 from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -16,6 +17,8 @@ class MockedResponse:
 
 class TestQuadroDeHorarios:
 
+    # SESSION = pytest.mo
+
     @pytest.fixture
     def html_pagina_inicial(self) -> str:
         pagina_inicial = Path(__file__).parent / 'html/quadro-de-horarios-pagina-inicial.html'
@@ -26,9 +29,10 @@ class TestQuadroDeHorarios:
         """Fixture que mocka requests.get para retornar o HTML informado."""
         def _mock(html: str) -> MagicMock:
             return mocker.patch(
-                "requests.get",
+                "requests.Session.get",
                 return_value=MockedResponse(html)
             )
+
         return _mock
 
 
@@ -180,3 +184,46 @@ class TestQuadroDeHorarios:
         }
 
         assert cursos == CURSOS_ESPERADOS
+
+
+    def test_pesquisa_vazia_gera_request_sem_parametros(self, mock_requests_get_response: Callable[..., MagicMock], html_pagina_inicial: str):
+        # cria o mock para requests.get
+        mock_get = mock_requests_get_response(html_pagina_inicial)
+
+        quadro = QuadroDeHorarios()
+        next(quadro.pesquisa())
+
+        mock_get.assert_called_with(QuadroDeHorarios.URL_PAGINA_INICIAL, params={'utf8': '✓', 'q[disciplina_nome_or_disciplina_codigo_cont]': ''})
+
+
+    def test_pesquisa_disciplina_gera_request_com_valor_no_parametro_de_disciplina(self, mock_requests_get_response: Callable[..., MagicMock], html_pagina_inicial: str):
+        # cria o mock para requests.get
+        mock_get = mock_requests_get_response(html_pagina_inicial)
+
+        DISCIPLINA = "TESTE"
+        quadro = QuadroDeHorarios()
+        next(quadro.pesquisa(DISCIPLINA))
+
+        mock_get.assert_called_with(QuadroDeHorarios.URL_PAGINA_INICIAL, params={'utf8': '✓', 'q[disciplina_nome_or_disciplina_codigo_cont]': f'{DISCIPLINA}'})
+
+
+    def test_pesquisa_com_valor_de_espera_deve_esperar_antes_de_fazer_request(self, mock_requests_get_response: Callable[..., MagicMock], html_pagina_inicial: str):
+        # cria o mock para requests.get
+        mock_get = mock_requests_get_response(html_pagina_inicial)
+
+        ESPERA = 2
+        quadro = QuadroDeHorarios()
+        inicio = time.perf_counter()
+        next(quadro.pesquisa(espera=ESPERA))
+        fim = time.perf_counter()
+
+        assert fim - inicio >= ESPERA, "Tempo de espera antes de fazer a requisição foi menor que o esperado"
+
+    # def test_selecionar_semestre_cria_url_com_parametro_certo(self, mock_requests_get_response: Callable[..., MagicMock], html_pagina_inicial: str):
+    #     # cria o mock para requests.get
+    #     mock_get = mock_requests_get_response(html_pagina_inicial)
+
+    #     quadro = QuadroDeHorarios()
+    #     quadro.seleciona_semestre(ano=2024, semestre=1)
+    #     quadro.pesquisa()
+    #     assert mock_get.assert_called_with(['q[anosemestre_eq]'] == '20241'
