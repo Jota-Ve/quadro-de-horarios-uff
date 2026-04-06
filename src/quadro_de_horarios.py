@@ -38,7 +38,7 @@ class QuadroDeHorarios():
     """Classe para a busca de disciplinas utilizando os filtros disponíveis"""
 
     __URL_DOMINIO = r'https://app.uff.br'
-    __URL_CAMINHO = r'/graduacao/quadrodehorarios'
+    __URL_CAMINHO = r'/graduacao/quadrodehorarios?utf8=✓'
     URL_PAGINA_INICIAL = __URL_DOMINIO + __URL_CAMINHO
 
     def __init__(self, session: requests.Session | None = None) -> None:
@@ -121,8 +121,9 @@ class QuadroDeHorarios():
             return self._session.get(link_prox_pag)
 
 
-        self._parametros['utf8'] = '✓'
-        self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_disciplina
+        # self._parametros['utf8'] = '✓'
+        if cod_ou_nome_disciplina := cod_ou_nome_disciplina.strip():
+            self._parametros['q[disciplina_nome_or_disciplina_codigo_cont]'] = cod_ou_nome_disciplina
         resposta = self._session.get(self.URL_PAGINA_INICIAL, params=self._parametros)
         yield ListaTurmas(resposta_bs4 := bs4.BeautifulSoup(resposta.text, features='lxml'))
 
